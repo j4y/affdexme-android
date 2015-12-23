@@ -76,6 +76,7 @@ public class MainActivity extends AppCompatActivity
         implements Detector.FaceListener, Detector.ImageListener, CameraDetector.CameraEventListener,
         View.OnTouchListener, ActivityCompat.OnRequestPermissionsResultCallback {
 
+    public static final int MAX_SUPPORTED_FACES = 4;
     public static final int NUM_METRICS_DISPLAYED = 6;
     private static final String LOG_TAG = "Affectiva";
     //Permission-related constants and variables
@@ -353,7 +354,7 @@ public class MainActivity extends AppCompatActivity
          * that view will be painted with what the camera sees.
          */
 
-        detector = new CameraDetector(this, CameraDetector.CameraType.CAMERA_FRONT, cameraView);
+        detector = new CameraDetector(this, CameraDetector.CameraType.CAMERA_FRONT, cameraView, MAX_SUPPORTED_FACES, Detector.FaceDetectorMode.LARGE_FACES);
 
         // update the license path here if you name your file something else
         detector.setLicensePath("license.txt");
@@ -570,7 +571,7 @@ public class MainActivity extends AppCompatActivity
          * to our drawing thread and also inform the thread what the valence score was, as that will determine the color
          * of the bounding box.
          */
-        if (drawingView.getDrawPointsEnabled() || drawingView.getDrawMeasurementsEnabled() || drawingView.getDrawAppearanceMarkersEnabled()) {
+        if (drawingView.getDrawPointsEnabled() || drawingView.getDrawAppearanceMarkersEnabled()) {
             drawingView.updatePoints(faces, mirrorPoints);
         }
     }

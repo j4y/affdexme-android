@@ -176,14 +176,6 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         drawingViewConfig.isDrawPointsEnabled = b;
     }
 
-    public boolean getDrawMeasurementsEnabled() {
-        return drawingViewConfig.isDrawMeasurementsEnabled;
-    }
-
-    public void setDrawMeasurementsEnabled(boolean b) {
-        drawingViewConfig.isDrawMeasurementsEnabled = b;
-    }
-
     public boolean getDrawAppearanceMarkersEnabled() {
         return drawingViewConfig.isDrawAppearanceMarkersEnabled;
     }
@@ -350,10 +342,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
         private void drawFaceAttributes(Canvas c, Face face, boolean mirrorPoints, boolean isMultiFaceMode) {
             //Coordinates around which to draw bounding box.
-            float leftBx = config.surfaceViewWidth;
-            float rightBx = 0;
-            float topBx = config.surfaceViewHeight;
-            float botBx = 0;
+            //Default to an 'inverted' box, where the absolute max and min values of the surface view are inside-out
+            Rect boundingRect = new Rect(config.surfaceViewWidth, config.surfaceViewHeight, 0, 0);
 
             for (PointF point : face.getFacePoints()) {
                 //transform from the camera coordinates to our screen coordinates
@@ -366,15 +356,10 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 }
                 float y = (point.y) * config.screenToImageRatio;
 
-                //We determine the left-most, top-most, right-most, and bottom-most points to draw the bounding box around.
-                if (x < leftBx)
-                    leftBx = x;
-                if (x > rightBx)
-                    rightBx = x;
-                if (y < topBx)
-                    topBx = y;
-                if (y > botBx)
-                    botBx = y;
+                //For some reason I needed to add each point twice to make sure that all the
+                //points get properly registered in the bounding box.
+                boundingRect.union(Math.round(x), Math.round(y));
+                boundingRect.union(Math.round(x), Math.round(y));
 
                 //Draw facial tracking dots.
                 if (config.isDrawPointsEnabled) {
@@ -384,25 +369,33 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
             //Draw the bounding box.
             if (config.isDrawPointsEnabled) {
-                setValenceOfBoundingBox(face.emotions.getValence());
-                c.drawRect(leftBx, topBx, rightBx, botBx, boxPaint);
+                drawBoundingBox(c, face, boundingRect);
             }
 
             //Draw the Appearance markers (gender / glasses)
             if (config.isDrawAppearanceMarkersEnabled) {
-                drawAppearanceMarkers(c, face, leftBx, topBx);
+                drawAppearanceMarkers(c, face, boundingRect);
             }
 
             //Only draw the emotion or emoji on the bounding box if we are in multiface mode, or the setting is set to always show the dominant metrics.
             if (isMultiFaceMode || config.isAlwaysShowDominantMarkersEnabled) {
-                drawDominantEmoji(c, face, rightBx, topBx);
-                drawDominantEmotion(c, face, leftBx, rightBx, botBx);
+                drawDominantEmoji(c, face, boundingRect);
+                drawDominantEmotion(c, face, boundingRect);
             }
         }
 
-        private void drawAppearanceMarkers(Canvas c, Face f, float leftBx, float topBy) {
-            float markerPoxX = leftBx - MARGIN;
-            float markerPosY = topBy;  //start aligned to the top of the box
+        private void drawBoundingBox(Canvas c, Face f, Rect boundingBox) {
+            setValenceOfBoundingBox(f.emotions.getValence());
+            c.drawRect(boundingBox.left,
+                    boundingBox.top,
+                    boundingBox.right,
+                    boundingBox.bottom,
+                    boxPaint);
+        }
+
+        private void drawAppearanceMarkers(Canvas c, Face f, Rect boundingBox) {
+            float markerPoxX = boundingBox.left - MARGIN;
+            float markerPosY = boundingBox.top;  //start aligned to the top of the box
 
             //GLASSES
             if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
@@ -418,17 +411,12 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             }
         }
 
-        private void drawDominantEmoji(Canvas c, Face f, float rightBx, float topBy) {
-            try {
-                drawEmojiFromCache(c, f.emojis.getDominantEmoji().name(), rightBx + MARGIN, topBy);
-            } catch (IllegalArgumentException e) {
-                Log.e(LOG_TAG, "Tried to read NaN from getDominantEmoji(), this is an error in the SDK.", e);
-            }
+        private void drawDominantEmoji(Canvas c, Face f, Rect boundingBox) {
+            drawEmojiFromCache(c, f.emojis.getDominantEmoji().name(), boundingBox.right + MARGIN, boundingBox.top);
         }
 
-        private void drawDominantEmotion(Canvas c, Face f, float leftBx, float rightBx, float bottomBy) {
+        private void drawDominantEmotion(Canvas c, Face f, Rect boundingBox) {
             Pair<String, Float> dominantMetric = findDominantEmotion(f);
-            float centerBx = (leftBx + rightBx) / 2;
 
             if (dominantMetric.first.isEmpty()) {
                 return;
@@ -438,8 +426,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             Rect textBounds = new Rect();
             config.textPaint.getTextBounds(emotionTextToDraw, 0, emotionTextToDraw.length(), textBounds);
 
-            c.drawText(emotionTextToDraw, centerBx, bottomBy + MARGIN + textBounds.height(), config.textBorderPaint);
-            c.drawText(emotionTextToDraw, centerBx, bottomBy + MARGIN + textBounds.height(), config.textPaint);
+            c.drawText(emotionTextToDraw, boundingBox.exactCenterX(), boundingBox.bottom + MARGIN + textBounds.height(), config.textBorderPaint);
+            c.drawText(emotionTextToDraw, boundingBox.exactCenterX(), boundingBox.bottom + MARGIN + textBounds.height(), config.textPaint);
         }
 
         private Pair<String, Float> findDominantEmotion(Face f) {
@@ -535,7 +523,6 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         private float screenToImageRatio = 0;
         private int drawThickness = 0;
         private boolean isDrawPointsEnabled = true; //by default, have the drawing thread draw tracking dots
-        private boolean isDrawMeasurementsEnabled = false;
         private boolean isDimensionsNeeded = true;
         private boolean isDrawAppearanceMarkersEnabled = false; //by default, do not draw the gender and glasses markers
         private boolean isAlwaysShowDominantMarkersEnabled = false; //by default, do not draw emoji
