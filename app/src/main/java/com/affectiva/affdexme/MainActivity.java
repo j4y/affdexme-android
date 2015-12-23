@@ -80,13 +80,13 @@ public class MainActivity extends AppCompatActivity
     private static final String LOG_TAG = "Affectiva";
     //Permission-related constants and variables
     private static final int AFFDEXME_PERMISSIONS_REQUEST = 42;  //value is arbitrary (between 0 and 255)
-    private boolean cameraPermissionsAvailable = false;
-    private boolean storagePermissionsAvailable = false;
     //Camera variables
     int cameraPreviewWidth = 0;
     int cameraPreviewHeight = 0;
     CameraDetector.CameraType cameraType;
     boolean mirrorPoints = false;
+    private boolean cameraPermissionsAvailable = false;
+    private boolean storagePermissionsAvailable = false;
     //Affectiva SDK Object
     private CameraDetector detector = null;
     //MetricsManager View UI Objects
@@ -99,8 +99,6 @@ public class MainActivity extends AppCompatActivity
     private TextView fpsPct;
     private TextView pleaseWaitTextView;
     private ProgressBar progressBar;
-    //Other UI objects
-    private ViewGroup activityLayout; //top-most ViewGroup in which all content resides
     private RelativeLayout mainLayout; //layout, to be resized, containing all UI elements
     private RelativeLayout progressBarLayout; //layout used to show progress circle while camera is starting
     private LinearLayout permissionsUnavailableLayout; //layout used to notify the user that not enough permissions have been granted to use the app
@@ -108,9 +106,7 @@ public class MainActivity extends AppCompatActivity
     private DrawingView drawingView; //SurfaceView containing its own thread, used to draw facial tracking dots
     private ImageButton settingsButton;
     private ImageButton cameraButton;
-    private Button retryPermissionsButton;
     //Application settings variables
-    private int detectorProcessRate;
     private boolean isMenuVisible = false;
     private boolean isFPSVisible = false;
     private boolean isMenuShowingForFirstTime = true;
@@ -264,7 +260,7 @@ public class MainActivity extends AppCompatActivity
     void initializeUI() {
 
         //Get handles to UI objects
-        activityLayout = (ViewGroup) findViewById(android.R.id.content);
+        ViewGroup activityLayout = (ViewGroup) findViewById(android.R.id.content);
         progressBarLayout = (RelativeLayout) findViewById(R.id.progress_bar_cover);
         permissionsUnavailableLayout = (LinearLayout) findViewById(R.id.permissionsUnavialableLayout);
         metricViewLayout = (RelativeLayout) findViewById(R.id.metric_view_group);
@@ -279,7 +275,7 @@ public class MainActivity extends AppCompatActivity
         cameraButton = (ImageButton) findViewById(R.id.camera_button);
         progressBar = (ProgressBar) findViewById(R.id.progress_bar);
         pleaseWaitTextView = (TextView) findViewById(R.id.please_wait_textview);
-        retryPermissionsButton = (Button) findViewById(R.id.retryPermissionsButton);
+        Button retryPermissionsButton = (Button) findViewById(R.id.retryPermissionsButton);
 
         //Initialize views to display metrics
         metricNames = new TextView[NUM_METRICS_DISPLAYED];
@@ -336,7 +332,7 @@ public class MainActivity extends AppCompatActivity
         activityLayout.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
             @Override
             public void onSystemUiVisibilityChange(int uiCode) {
-                if ((uiCode == 0) && (isMenuVisible == false)) {
+                if ((uiCode == 0) && (!isMenuVisible)) {
                     setMenuVisible(true);
                 }
 
@@ -385,8 +381,9 @@ public class MainActivity extends AppCompatActivity
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
         //restore camera processing rate
-        detectorProcessRate = PreferencesUtils.getFrameProcessingRate(sharedPreferences);
+        int detectorProcessRate = PreferencesUtils.getFrameProcessingRate(sharedPreferences);
         detector.setMaxProcessRate(detectorProcessRate);
+        drawingView.invalidateDimensions();
 
         if (sharedPreferences.getBoolean("fps", isFPSVisible)) {    //restore isFPSMetricVisible
             setFPSVisible(true);
@@ -400,10 +397,20 @@ public class MainActivity extends AppCompatActivity
             setTrackPoints(false);
         }
 
-        if (sharedPreferences.getBoolean("measurements", drawingView.getDrawMeasurementsEnabled())) { //restore show measurements
-            setShowMeasurements(true);
+        if (sharedPreferences.getBoolean("appearance", drawingView.getDrawAppearanceMarkersEnabled())) {
+            detector.setDetectAllAppearance(true);
+            setShowAppearance(true);
         } else {
-            setShowMeasurements(false);
+            detector.setDetectAllAppearance(false);
+            setShowAppearance(false);
+        }
+
+        if (sharedPreferences.getBoolean("showDominant", drawingView.getAlwaysShowDominantMarkersEnabled())) {
+            detector.setDetectAllEmojis(true);
+            setShowEmoji(true);
+        } else {
+            detector.setDetectAllEmojis(false);
+            setShowEmoji(false);
         }
 
         //populate metric displays
@@ -427,7 +434,7 @@ public class MainActivity extends AppCompatActivity
             Detector.class.getMethod("setDetect" + MetricsManager.getCamelCase(metric), boolean.class).invoke(detector, true);
 
             if (metric.getType() == MetricsManager.MetricType.Emotion) {
-                getFaceScoreMethod = Face.Emotions.class.getMethod("get" + MetricsManager.getCamelCase(metric), null);
+                getFaceScoreMethod = Face.Emotions.class.getMethod("get" + MetricsManager.getCamelCase(metric));
 
                 //The MetricDisplay for Valence is unique; it shades it color depending on the metric value
                 if (metric == MetricsManager.Emotions.VALENCE) {
@@ -436,7 +443,7 @@ public class MainActivity extends AppCompatActivity
                     metricDisplays[index].setIsShadedMetricView(false);
                 }
             } else if (metric.getType() == MetricsManager.MetricType.Expression) {
-                getFaceScoreMethod = Face.Expressions.class.getMethod("get" + MetricsManager.getCamelCase(metric), null);
+                getFaceScoreMethod = Face.Expressions.class.getMethod("get" + MetricsManager.getCamelCase(metric));
             }
         } catch (Exception e) {
             Log.e(LOG_TAG, String.format("Error using reflection to generate methods for %s", metric.toString()));
@@ -544,17 +551,18 @@ public class MainActivity extends AppCompatActivity
 
         //If faces.size() is 0, we received a frame in which no face was detected
         if (faces.size() == 0) {
-            drawingView.updatePoints(null, mirrorPoints); //the drawingView takes null points to mean it doesn't have to draw anything
+            drawingView.invalidatePoints();
             return;
         }
 
-        //The SDK currently detects one face at a time, so we recover it using .get(0).
-        //'0' indicates we are recovering the first face.
-        Face face = faces.get(0);
-
-        //update metrics with latest face information. The metrics are displayed on a MetricView, a custom view with a .setScore() method.
-        for (MetricDisplay metricDisplay : metricDisplays) {
-            updateMetricScore(metricDisplay, face);
+        if (faces.size() == 1) {
+            metricViewLayout.setVisibility(View.VISIBLE);
+            //update metrics with latest face information. The metrics are displayed on a MetricView, a custom view with a .setScore() method.
+            for (MetricDisplay metricDisplay : metricDisplays) {
+                updateMetricScore(metricDisplay, faces.get(0));
+            }
+        } else {
+            metricViewLayout.setVisibility(View.GONE);
         }
 
         /**
@@ -562,12 +570,10 @@ public class MainActivity extends AppCompatActivity
          * to our drawing thread and also inform the thread what the valence score was, as that will determine the color
          * of the bounding box.
          */
-        if (drawingView.getDrawPointsEnabled() || drawingView.getDrawMeasurementsEnabled()) {
-            drawingView.setMetrics(face.measurements.orientation.getRoll(), face.measurements.orientation.getYaw(), face.measurements.orientation.getPitch(), face.measurements.getInterocularDistance(), face.emotions.getValence());
-            drawingView.updatePoints(face.getFacePoints(), mirrorPoints);
+        if (drawingView.getDrawPointsEnabled() || drawingView.getDrawMeasurementsEnabled() || drawingView.getDrawAppearanceMarkersEnabled()) {
+            drawingView.updatePoints(faces, mirrorPoints);
         }
     }
-
 
     /**
      * Use the method that we saved in activateMetric() to get the metric score and display it
@@ -578,11 +584,15 @@ public class MainActivity extends AppCompatActivity
         float score = Float.NaN;
 
         try {
-            if (metric.getType() == MetricsManager.MetricType.Emotion) {
-                score = (Float) metricDisplay.getFaceScoreMethod().invoke(face.emotions, null);
-                metricDisplay.setScore(score);
-            } else if (metric.getType() == MetricsManager.MetricType.Expression) {
-                score = (Float) metricDisplay.getFaceScoreMethod().invoke(face.expressions, null);
+            switch (metric.getType()) {
+                case Emotion:
+                    score = (Float) metricDisplay.getFaceScoreMethod().invoke(face.emotions);
+                    break;
+                case Expression:
+                    score = (Float) metricDisplay.getFaceScoreMethod().invoke(face.expressions);
+                    break;
+                default:
+                    throw new Exception("Unknown Metric Type: " + metric.getType().toString());
             }
         } catch (Exception e) {
             Log.e(LOG_TAG, String.format("Error using reflecting to get %s score from face.", metric.toString()));
@@ -633,6 +643,8 @@ public class MainActivity extends AppCompatActivity
 
         detector.setDetectAllEmotions(false);
         detector.setDetectAllExpressions(false);
+        detector.setDetectAllAppearance(false);
+        detector.setDetectAllEmojis(false);
     }
 
 
@@ -659,10 +671,7 @@ public class MainActivity extends AppCompatActivity
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE);
-
-
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN);
             settingsButton.setVisibility(View.INVISIBLE);
             cameraButton.setVisibility(View.INVISIBLE);
         }
@@ -686,9 +695,14 @@ public class MainActivity extends AppCompatActivity
         drawingView.setDrawPointsEnabled(b);
     }
 
-    void setShowMeasurements(boolean b) {
-        drawingView.setDrawMeasurementsEnabled(b);
+    void setShowAppearance(boolean b) {
+        drawingView.setDrawAppearanceMarkersEnabled(b);
     }
+
+    void setShowEmoji(boolean b) {
+        drawingView.getAlwaysShowDominantMarkersEnabled(b);
+    }
+
 
     void setFPSVisible(boolean b) {
         isFPSVisible = b;
@@ -713,14 +727,7 @@ public class MainActivity extends AppCompatActivity
         startActivity(new Intent(this, SettingsActivity.class));
     }
 
-    /* onCameraStarted is a feature of SDK 2.02, commenting out for 2.01
-    @Override
-    public void onCameraStarted(boolean b, Throwable throwable) {
-        if (throwable != null) {
-            Toast.makeText(this,"Failed to start camera.",Toast.LENGTH_LONG).show();
-        }
-    }*/
-
+    @SuppressWarnings("SuspiciousNameCombination")
     @Override
     public void onCameraSizeSelected(int cameraWidth, int cameraHeight, ROTATE rotation) {
         if (rotation == ROTATE.BY_90_CCW || rotation == ROTATE.BY_90_CW) {
