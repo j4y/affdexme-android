@@ -1,6 +1,7 @@
 package com.affectiva.affdexme;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -125,11 +126,11 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN); //To maximize UI space, we declare our app to be full-screen
+        preproccessMetricImages();
         setContentView(R.layout.activity_main);
 
         initializeUI();
         checkForDangerousPermissions();
-        preproccessEmojiImagesIfNecessary();
 
         determineCameraAvailability();
 
@@ -139,32 +140,43 @@ public class MainActivity extends AppCompatActivity
     /**
      * Only load the files onto disk the first time the app opens
      */
-    private void preproccessEmojiImagesIfNecessary() {
-        // Set this to true to force the app to always load the images for debugging purposes
-        final boolean DEBUG = false;
+    private void preproccessMetricImages() {
+        Context context = getBaseContext();
 
         for (Face.EMOJI emoji : Face.EMOJI.values()) {
             String emojiResourceName = emoji.name().trim().replace(' ', '_').toLowerCase(Locale.US).concat("_emoji");
             String emojiFileName = emojiResourceName + ".png";
+            preprocessImageIfNecessary(context, emojiFileName, emojiResourceName);
+        }
 
-            if (ImageHelper.checkIfImageFileExists(getBaseContext(), emojiFileName)) {
-                // Image file already exists, no need to load the file again.
+        preprocessImageIfNecessary(context, "female_red_glasses_alpha.png", "female_red_glasses_alpha");
+        preprocessImageIfNecessary(context, "female_red_noglasses_alpha.png", "female_red_noglasses_alpha");
+        preprocessImageIfNecessary(context, "male_green_glasses_alpha.png", "male_green_glasses_alpha");
+        preprocessImageIfNecessary(context, "male_green_noglasses_alpha.png", "male_green_noglasses_alpha");
+        preprocessImageIfNecessary(context, "unknown_glasses_alpha.png", "unknown_glasses_alpha");
+    }
 
-                if (DEBUG) {
-                    Log.d(LOG_TAG, "DEBUG: Deleting: " + emojiFileName);
-                    ImageHelper.deleteImageFile(getBaseContext(), emojiFileName);
-                } else {
-                    return;
-                }
+    private void preprocessImageIfNecessary(Context context, String fileName, String resourceName) {
+        // Set this to true to force the app to always load the images for debugging purposes
+        final boolean DEBUG = false;
+
+        if (ImageHelper.checkIfImageFileExists(context, fileName)) {
+            // Image file already exists, no need to load the file again.
+
+            if (DEBUG) {
+                Log.d(LOG_TAG, "DEBUG: Deleting: " + fileName);
+                ImageHelper.deleteImageFile(context, fileName);
+            } else {
+                return;
             }
+        }
 
-            try {
-                ImageHelper.resizeAndSaveResourceImageToInternalStorage(getBaseContext(), emojiFileName, emojiResourceName);
-                Log.d(LOG_TAG, "Resized and saved image: " + emojiFileName);
-            } catch (FileNotFoundException e) {
-                Log.e(LOG_TAG, "Unable to process image: " + emojiFileName, e);
-                throw new RuntimeException(e);
-            }
+        try {
+            ImageHelper.resizeAndSaveResourceImageToInternalStorage(context, fileName, resourceName);
+            Log.d(LOG_TAG, "Resized and saved image: " + fileName);
+        } catch (FileNotFoundException e) {
+            Log.e(LOG_TAG, "Unable to process image: " + fileName, e);
+            throw new RuntimeException(e);
         }
     }
 

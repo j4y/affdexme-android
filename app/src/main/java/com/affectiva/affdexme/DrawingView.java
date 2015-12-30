@@ -37,9 +37,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     private static String LOG_TAG = "AffdexMe";
     //Static references to bitmaps drawn on the surface
-    private static Bitmap appearanceMarkerBitmap_genderMale;
-    private static Bitmap appearanceMarkerBitmap_genderFemale;
-    private static Bitmap appearanceMarkerBitmap_glassesOn;
+    private static Bitmap appearanceMarkerBitmap_genderMale_glassesOn;
+    private static Bitmap appearanceMarkerBitmap_genderFemale_glassesOn;
+    private static Bitmap appearanceMarkerBitmap_genderUnknown_glassesOn;
+    private static Bitmap appearanceMarkerBitmap_genderMale_glassesOff;
+    private static Bitmap appearanceMarkerBitmap_genderFemale_glassesOff;
     private static Map<String, Bitmap> emojiMarkerBitmapToEmojiTypeMap;
     final float MARGIN = 2;
     //Class variables of DrawingView class
@@ -208,14 +210,20 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             emojiMarkerBitmapToEmojiTypeMap.clear();
         }
 
-        if (appearanceMarkerBitmap_genderMale != null) {
-            appearanceMarkerBitmap_genderMale.recycle();
+        if (appearanceMarkerBitmap_genderMale_glassesOn != null) {
+            appearanceMarkerBitmap_genderMale_glassesOn.recycle();
         }
-        if (appearanceMarkerBitmap_genderFemale != null) {
-            appearanceMarkerBitmap_genderFemale.recycle();
+        if (appearanceMarkerBitmap_genderFemale_glassesOn != null) {
+            appearanceMarkerBitmap_genderFemale_glassesOn.recycle();
         }
-        if (appearanceMarkerBitmap_glassesOn != null) {
-            appearanceMarkerBitmap_glassesOn.recycle();
+        if (appearanceMarkerBitmap_genderUnknown_glassesOn != null) {
+            appearanceMarkerBitmap_genderUnknown_glassesOn.recycle();
+        }
+        if (appearanceMarkerBitmap_genderMale_glassesOff != null) {
+            appearanceMarkerBitmap_genderMale_glassesOff.recycle();
+        }
+        if (appearanceMarkerBitmap_genderFemale_glassesOff != null) {
+            appearanceMarkerBitmap_genderFemale_glassesOff.recycle();
         }
     }
 
@@ -242,9 +250,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             mSurfaceHolder = surfaceHolder;
 
             //statically load the Appearance marker bitmaps so they only have to load once
-            appearanceMarkerBitmap_genderMale = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.gender_male_white_22x48dp);
-            appearanceMarkerBitmap_genderFemale = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.gender_female_white_22x48dp);
-            appearanceMarkerBitmap_glassesOn = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.glasses_outline_48x17dp);
+            appearanceMarkerBitmap_genderMale_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "male_green_glasses_alpha.png");
+            appearanceMarkerBitmap_genderMale_glassesOff = ImageHelper.loadBitmapFromInternalStorage(getContext(), "male_green_noglasses_alpha.png");
+            appearanceMarkerBitmap_genderFemale_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "female_red_glasses_alpha.png");
+            appearanceMarkerBitmap_genderFemale_glassesOff = ImageHelper.loadBitmapFromInternalStorage(getContext(), "female_red_noglasses_alpha.png");
+            appearanceMarkerBitmap_genderUnknown_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "unknown_glasses_alpha.png");
 
             circlePaint = new Paint();
             circlePaint.setColor(Color.WHITE);
@@ -421,23 +431,34 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             float markerPoxX = boundingBox.left - MARGIN;
             float markerPosY = boundingBox.top;  //start aligned to the top of the box
 
-            //GLASSES
-            if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
-                if (!appearanceMarkerBitmap_glassesOn.isRecycled()) {
-                    c.drawBitmap(appearanceMarkerBitmap_glassesOn, markerPoxX - appearanceMarkerBitmap_glassesOn.getWidth(), markerPosY, boxPaint);
-                    markerPosY += appearanceMarkerBitmap_glassesOn.getHeight() + MARGIN;
-                }
+            switch (f.appearance.getGender()) {
+                case MALE:
+                    if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderMale_glassesOn, markerPoxX - appearanceMarkerBitmap_genderMale_glassesOn.getWidth(), markerPosY, boxPaint);
+                    } else {
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderMale_glassesOff, markerPoxX - appearanceMarkerBitmap_genderMale_glassesOff.getWidth(), markerPosY, boxPaint);
+                    }
+                    break;
+                case FEMALE:
+                    if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderFemale_glassesOn, markerPoxX - appearanceMarkerBitmap_genderFemale_glassesOn.getWidth(), markerPosY, boxPaint);
+                    } else {
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderFemale_glassesOff, markerPoxX - appearanceMarkerBitmap_genderFemale_glassesOff.getWidth(), markerPosY, boxPaint);
+                    }
+                    break;
+                case UNKNOWN:
+                    if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderUnknown_glassesOn, markerPoxX - appearanceMarkerBitmap_genderUnknown_glassesOn.getWidth(), markerPosY, boxPaint);
+                    }
+                    break;
+                default:
+                    Log.e(LOG_TAG, "Unknown gender: " + f.appearance.getGender());
             }
+        }
 
-            //GENDER
-            if (Face.GENDER.MALE.equals(f.appearance.getGender())) {
-                if (!appearanceMarkerBitmap_genderMale.isRecycled()) {
-                    c.drawBitmap(appearanceMarkerBitmap_genderMale, markerPoxX - appearanceMarkerBitmap_genderMale.getWidth(), markerPosY, boxPaint);
-                }
-            } else if (Face.GENDER.FEMALE.equals(f.appearance.getGender())) {
-                if (!appearanceMarkerBitmap_genderFemale.isRecycled()) {
-                    c.drawBitmap(appearanceMarkerBitmap_genderFemale, markerPoxX - appearanceMarkerBitmap_genderFemale.getWidth(), markerPosY, boxPaint);
-                }
+        private void drawBitmapIfNotRecycled(Canvas c, Bitmap b, float posX, float posY, Paint p) {
+            if (!b.isRecycled()) {
+                c.drawBitmap(b, posX, posY, p);
             }
         }
 
