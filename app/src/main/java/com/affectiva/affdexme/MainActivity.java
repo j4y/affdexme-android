@@ -462,24 +462,34 @@ public class MainActivity extends AppCompatActivity
      * -save the Method object that will be invoked on the Face object received in onImageResults() to get the metric score
      */
     void activateMetric(int index, MetricsManager.Metrics metric) {
-        metricNames[index].setText(MetricsManager.getUpperCaseName(metric));
 
         Method getFaceScoreMethod = null; //The method that will be used to get a metric score
         try {
-            //Enable metric detection
-            Detector.class.getMethod("setDetect" + MetricsManager.getCamelCase(metric), boolean.class).invoke(detector, true);
+            switch (metric.getType()) {
+                case Emotion:
+                    Detector.class.getMethod("setDetect" + MetricsManager.getCamelCase(metric), boolean.class).invoke(detector, true);
+                    metricNames[index].setText(MetricsManager.getUpperCaseName(metric));
+                    getFaceScoreMethod = Face.Emotions.class.getMethod("get" + MetricsManager.getCamelCase(metric));
 
-            if (metric.getType() == MetricsManager.MetricType.Emotion) {
-                getFaceScoreMethod = Face.Emotions.class.getMethod("get" + MetricsManager.getCamelCase(metric));
-
-                //The MetricDisplay for Valence is unique; it shades it color depending on the metric value
-                if (metric == MetricsManager.Emotions.VALENCE) {
-                    metricDisplays[index].setIsShadedMetricView(true);
-                } else {
-                    metricDisplays[index].setIsShadedMetricView(false);
-                }
-            } else if (metric.getType() == MetricsManager.MetricType.Expression) {
-                getFaceScoreMethod = Face.Expressions.class.getMethod("get" + MetricsManager.getCamelCase(metric));
+                    //The MetricDisplay for Valence is unique; it shades it color depending on the metric value
+                    if (metric == MetricsManager.Emotions.VALENCE) {
+                        metricDisplays[index].setIsShadedMetricView(true);
+                    } else {
+                        metricDisplays[index].setIsShadedMetricView(false);
+                    }
+                    break;
+                case Expression:
+                    Detector.class.getMethod("setDetect" + MetricsManager.getCamelCase(metric), boolean.class).invoke(detector, true);
+                    metricNames[index].setText(MetricsManager.getUpperCaseName(metric));
+                    getFaceScoreMethod = Face.Expressions.class.getMethod("get" + MetricsManager.getCamelCase(metric));
+                    break;
+                case Emoji:
+                    detector.setDetectAllEmojis(true);
+                    String metricTitle = MetricsManager.getUpperCaseName(metric) + " " + ((MetricsManager.Emojis) metric).getUnicodeForEmoji();
+                    metricNames[index].setText(metricTitle);
+                    Log.d(LOG_TAG, "Getter Method: " + "get" + MetricsManager.getCamelCase(metric));
+                    getFaceScoreMethod = Face.Emojis.class.getMethod("get" + MetricsManager.getCamelCase(metric));
+                    break;
             }
         } catch (Exception e) {
             Log.e(LOG_TAG, String.format("Error using reflection to generate methods for %s", metric.toString()));
@@ -626,6 +636,9 @@ public class MainActivity extends AppCompatActivity
                     break;
                 case Expression:
                     score = (Float) metricDisplay.getFaceScoreMethod().invoke(face.expressions);
+                    break;
+                case Emoji:
+                    score = (Float) metricDisplay.getFaceScoreMethod().invoke(face.emojis);
                     break;
                 default:
                     throw new Exception("Unknown Metric Type: " + metric.getType().toString());

@@ -79,6 +79,9 @@ public class MetricSelector extends FrameLayout {
         videoResourceURIIndex = 0;
 
         //set up image
+        if (metric.getType().equals(MetricsManager.MetricType.Emoji)) {
+            resourceName += "_emoji";
+        }
         picId = res.getIdentifier(resourceName, "drawable", packageName);
         imageView = (ImageView) content.findViewById(R.id.grid_item_image_view);
         imageViewBeneath = (ImageView) content.findViewById(R.id.grid_item_image_view_beneath);
@@ -174,6 +177,4 @@ public class MetricSelector extends FrameLayout {
             backgroundLayout.setBackgroundColor(itemNotSelectedColor);
         }
     }
-
-
 }

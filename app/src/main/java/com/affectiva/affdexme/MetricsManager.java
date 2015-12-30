@@ -1,5 +1,7 @@
 package com.affectiva.affdexme;
 
+import com.affectiva.android.affdex.sdk.detector.Face;
+
 /**
  * A class containing:
  * -enumerations representing the Emotion and Expressions featured in the Affectiva SDK.
@@ -88,9 +90,9 @@ public class MetricsManager {
         return builder.toString();
     }
 
-    enum MetricType {Emotion, Expression, Emoji}
+    public enum MetricType {Emotion, Expression, Emoji}
 
-    enum Emotions implements Metrics {
+    public enum Emotions implements Metrics {
         ANGER,
         DISGUST,
         FEAR,
@@ -107,7 +109,7 @@ public class MetricsManager {
         }
     }
 
-    enum Expressions implements Metrics {
+    public enum Expressions implements Metrics {
         ATTENTION,
         BROW_FURROW,
         BROW_RAISE,
@@ -130,7 +132,7 @@ public class MetricsManager {
         }
     }
 
-    enum Emojis implements Metrics {
+    public enum Emojis implements Metrics {
         RELAXED,
         SMILEY,
         LAUGHING,
@@ -150,9 +152,44 @@ public class MetricsManager {
         public MetricType getType() {
             return MetricType.Emoji;
         }
+
+        public String getUnicodeForEmoji() {
+            switch (this) {
+                case RELAXED:
+                    return Face.EMOJI.RELAXED.getUnicode();
+                case SMILEY:
+                    return Face.EMOJI.SMILEY.getUnicode();
+                case LAUGHING:
+                    return Face.EMOJI.LAUGHING.getUnicode();
+                case KISSING_CLOSED_EYES:
+                    return Face.EMOJI.KISSING_CLOSED_EYES.getUnicode();
+                case KISSING:
+                    return Face.EMOJI.KISSING.getUnicode();
+                case DISAPPOINTED:
+                    return Face.EMOJI.DISAPPOINTED.getUnicode();
+                case RAGE:
+                    return Face.EMOJI.RAGE.getUnicode();
+                case SMIRK:
+                    return Face.EMOJI.SMIRK.getUnicode();
+                case WINK:
+                    return Face.EMOJI.WINK.getUnicode();
+                case STUCK_OUT_TONGUE_CLOSED_EYES:
+                    return Face.EMOJI.STUCK_OUT_TONGUE_CLOSED_EYES.getUnicode();
+                case STUCK_OUT_TONGUE_WINKING_EYE:
+                    return Face.EMOJI.STUCK_OUT_TONGUE_WINKING_EYE.getUnicode();
+                case STUCK_OUT_TONGUE:
+                    return Face.EMOJI.STUCK_OUT_TONGUE.getUnicode();
+                case FLUSHED:
+                    return Face.EMOJI.FLUSHED.getUnicode();
+                case SCREAM:
+                    return Face.EMOJI.SCREAM.getUnicode();
+                default:
+                    return "";
+            }
+        }
     }
 
-    interface Metrics {
+    public interface Metrics {
         MetricType getType();
     }
 }
