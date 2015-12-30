@@ -36,9 +36,11 @@ import com.affectiva.android.affdex.sdk.detector.CameraDetector;
 import com.affectiva.android.affdex.sdk.detector.Detector;
 import com.affectiva.android.affdex.sdk.detector.Face;
 
+import java.io.FileNotFoundException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /*
  * AffdexMe is an app that demonstrates the use of the Affectiva Android SDK.  It uses the
@@ -127,10 +129,43 @@ public class MainActivity extends AppCompatActivity
 
         initializeUI();
         checkForDangerousPermissions();
+        preproccessEmojiImagesIfNecessary();
 
         determineCameraAvailability();
 
         initializeCameraDetector();
+    }
+
+    /**
+     * Only load the files onto disk the first time the app opens
+     */
+    private void preproccessEmojiImagesIfNecessary() {
+        // Set this to true to force the app to always load the images for debugging purposes
+        final boolean DEBUG = false;
+
+        for (Face.EMOJI emoji : Face.EMOJI.values()) {
+            String emojiResourceName = emoji.name().trim().replace(' ', '_').toLowerCase(Locale.US).concat("_emoji");
+            String emojiFileName = emojiResourceName + ".png";
+
+            if (ImageHelper.checkIfImageFileExists(getBaseContext(), emojiFileName)) {
+                // Image file already exists, no need to load the file again.
+
+                if (DEBUG) {
+                    Log.d(LOG_TAG, "DEBUG: Deleting: " + emojiFileName);
+                    ImageHelper.deleteImageFile(getBaseContext(), emojiFileName);
+                } else {
+                    return;
+                }
+            }
+
+            try {
+                ImageHelper.resizeAndSaveResourceImageToInternalStorage(getBaseContext(), emojiFileName, emojiResourceName);
+                Log.d(LOG_TAG, "Resized and saved image: " + emojiFileName);
+            } catch (FileNotFoundException e) {
+                Log.e(LOG_TAG, "Unable to process image: " + emojiFileName, e);
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     private void checkForDangerousPermissions() {

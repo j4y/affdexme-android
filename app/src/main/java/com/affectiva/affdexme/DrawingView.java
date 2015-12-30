@@ -102,11 +102,6 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
         drawingThread = new DrawingThread(surfaceHolder, drawingViewConfig);
 
-        //statically load the Appearance marker bitmaps so they only have to load once
-        appearanceMarkerBitmap_genderMale = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.gender_male_white_22x48dp);
-        appearanceMarkerBitmap_genderFemale = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.gender_female_white_22x48dp);
-        appearanceMarkerBitmap_glassesOn = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.glasses_outline_48x17dp);
-
         //statically load the emoji bitmaps on-demand and cache
         emojiMarkerBitmapToEmojiTypeMap = new HashMap<>();
     }
@@ -141,6 +136,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 Log.e(LOG_TAG, e.getMessage());
             }
         }
+        cleanup();
     }
 
     public boolean isDimensionsNeeded() {
@@ -200,6 +196,29 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         drawingThread.invalidatePoints();
     }
 
+    /**
+     * To be called when this view element is potentially being destroyed
+     * I.E. when the Activity's onPause() gets called.
+     */
+    public void cleanup() {
+        if (emojiMarkerBitmapToEmojiTypeMap != null) {
+            for (Bitmap bitmap : emojiMarkerBitmapToEmojiTypeMap.values()) {
+                bitmap.recycle();
+            }
+            emojiMarkerBitmapToEmojiTypeMap.clear();
+        }
+
+        if (appearanceMarkerBitmap_genderMale != null) {
+            appearanceMarkerBitmap_genderMale.recycle();
+        }
+        if (appearanceMarkerBitmap_genderFemale != null) {
+            appearanceMarkerBitmap_genderFemale.recycle();
+        }
+        if (appearanceMarkerBitmap_glassesOn != null) {
+            appearanceMarkerBitmap_glassesOn.recycle();
+        }
+    }
+
     class FacesSharer {
         boolean isPointsMirrored;
         List<Face> facesToDraw;
@@ -221,6 +240,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
         public DrawingThread(SurfaceHolder surfaceHolder, DrawingViewConfig con) {
             mSurfaceHolder = surfaceHolder;
+
+            //statically load the Appearance marker bitmaps so they only have to load once
+            appearanceMarkerBitmap_genderMale = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.gender_male_white_22x48dp);
+            appearanceMarkerBitmap_genderFemale = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.gender_female_white_22x48dp);
+            appearanceMarkerBitmap_glassesOn = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.glasses_outline_48x17dp);
 
             circlePaint = new Paint();
             circlePaint.setColor(Color.WHITE);
@@ -399,15 +423,21 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
             //GLASSES
             if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
-                c.drawBitmap(appearanceMarkerBitmap_glassesOn, markerPoxX - appearanceMarkerBitmap_glassesOn.getWidth(), markerPosY, boxPaint);
-                markerPosY += appearanceMarkerBitmap_glassesOn.getHeight() + MARGIN;
+                if (!appearanceMarkerBitmap_glassesOn.isRecycled()) {
+                    c.drawBitmap(appearanceMarkerBitmap_glassesOn, markerPoxX - appearanceMarkerBitmap_glassesOn.getWidth(), markerPosY, boxPaint);
+                    markerPosY += appearanceMarkerBitmap_glassesOn.getHeight() + MARGIN;
+                }
             }
 
             //GENDER
             if (Face.GENDER.MALE.equals(f.appearance.getGender())) {
-                c.drawBitmap(appearanceMarkerBitmap_genderMale, markerPoxX - appearanceMarkerBitmap_genderMale.getWidth(), markerPosY, boxPaint);
+                if (!appearanceMarkerBitmap_genderMale.isRecycled()) {
+                    c.drawBitmap(appearanceMarkerBitmap_genderMale, markerPoxX - appearanceMarkerBitmap_genderMale.getWidth(), markerPosY, boxPaint);
+                }
             } else if (Face.GENDER.FEMALE.equals(f.appearance.getGender())) {
-                c.drawBitmap(appearanceMarkerBitmap_genderFemale, markerPoxX - appearanceMarkerBitmap_genderFemale.getWidth(), markerPosY, boxPaint);
+                if (!appearanceMarkerBitmap_genderFemale.isRecycled()) {
+                    c.drawBitmap(appearanceMarkerBitmap_genderFemale, markerPoxX - appearanceMarkerBitmap_genderFemale.getWidth(), markerPosY, boxPaint);
+                }
             }
         }
 
@@ -484,7 +514,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         Bitmap getEmojiBitmapByName(String emojiName) throws FileNotFoundException {
-            String emojiFileName = emojiName.trim().replace(' ', '_').toLowerCase(Locale.US);
+            String emojiResourceName = emojiName.trim().replace(' ', '_').toLowerCase(Locale.US).concat("_emoji");
+            String emojiFileName = emojiResourceName + ".png";
 
             //Try to get the emoji from the cache
             Bitmap desiredEmojiBitmap = emojiMarkerBitmapToEmojiTypeMap.get(emojiFileName);
@@ -494,7 +525,22 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 return desiredEmojiBitmap;
             }
 
-            //Cache miss, try to locate the emoji resource
+            //Cache miss, try and load the bitmap from disk
+            desiredEmojiBitmap = ImageHelper.loadBitmapFromInternalStorage(getContext(), emojiFileName);
+
+            if (desiredEmojiBitmap != null) {
+                //emoji bitmap found in the app storage
+
+
+                //Bitmap loaded, add to cache for subsequent use.
+                emojiMarkerBitmapToEmojiTypeMap.put(emojiFileName, desiredEmojiBitmap);
+
+                return desiredEmojiBitmap;
+            }
+
+            Log.d(LOG_TAG, "Emoji not found on disk: " + emojiFileName);
+
+            //Still unable to find the file, try to locate the emoji resource
             final int resourceId = getDrawable(getContext(), emojiFileName);
 
             if (resourceId == 0) {
