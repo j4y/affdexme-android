@@ -82,18 +82,13 @@ public class MainActivity extends AppCompatActivity
     public static final int MAX_SUPPORTED_FACES = 4;
     public static final int NUM_METRICS_DISPLAYED = 6;
     private static final String LOG_TAG = "Affectiva";
-    //Permission-related constants and variables
     private static final int AFFDEXME_PERMISSIONS_REQUEST = 42;  //value is arbitrary (between 0 and 255)
-    //Camera variables
     int cameraPreviewWidth = 0;
     int cameraPreviewHeight = 0;
     CameraDetector.CameraType cameraType;
     boolean mirrorPoints = false;
     private boolean cameraPermissionsAvailable = false;
-    private boolean storagePermissionsAvailable = false;
-    //Affectiva SDK Object
     private CameraDetector detector = null;
-    //MetricsManager View UI Objects
     private RelativeLayout metricViewLayout;
     private LinearLayout leftMetricsLayout;
     private LinearLayout rightMetricsLayout;
@@ -110,15 +105,12 @@ public class MainActivity extends AppCompatActivity
     private DrawingView drawingView; //SurfaceView containing its own thread, used to draw facial tracking dots
     private ImageButton settingsButton;
     private ImageButton cameraButton;
-    //Application settings variables
     private boolean isMenuVisible = false;
     private boolean isFPSVisible = false;
     private boolean isMenuShowingForFirstTime = true;
-    //Frames Per Second (FPS) variables
     private long firstSystemTime = 0;
     private float numberOfFrames = 0;
     private long timeToUpdate = 0;
-    //Camera-related variables
     private boolean isFrontFacingCameraDetected = true;
     private boolean isBackFacingCameraDetected = true;
 
@@ -128,12 +120,9 @@ public class MainActivity extends AppCompatActivity
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN); //To maximize UI space, we declare our app to be full-screen
         preproccessMetricImages();
         setContentView(R.layout.activity_main);
-
         initializeUI();
         checkForDangerousPermissions();
-
         determineCameraAvailability();
-
         initializeCameraDetector();
     }
 
@@ -185,16 +174,11 @@ public class MainActivity extends AppCompatActivity
                 ContextCompat.checkSelfPermission(
                         getApplicationContext(),
                         Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
-        storagePermissionsAvailable =
-                ContextCompat.checkSelfPermission(
-                        getBaseContext(),
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
 
-        if (!cameraPermissionsAvailable || !storagePermissionsAvailable) {
+        if (!cameraPermissionsAvailable) {
 
             // Should we show an explanation?
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ||
-                    ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
 
                 // Show an explanation to the user *asynchronously* -- don't block
                 // this thread waiting for the user's response! After the user
@@ -212,9 +196,6 @@ public class MainActivity extends AppCompatActivity
 
         if (!cameraPermissionsAvailable) {
             neededPermissions.add(Manifest.permission.CAMERA);
-        }
-        if (!storagePermissionsAvailable) {
-            neededPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         }
 
         ActivityCompat.requestPermissions(
@@ -238,13 +219,10 @@ public class MainActivity extends AppCompatActivity
                 if (permission.equals(Manifest.permission.CAMERA)) {
                     cameraPermissionsAvailable = (grantResult == PackageManager.PERMISSION_GRANTED);
                 }
-                if (permission.equals(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                    storagePermissionsAvailable = (grantResult == PackageManager.PERMISSION_GRANTED);
-                }
             }
         }
 
-        if (!cameraPermissionsAvailable || !storagePermissionsAvailable) {
+        if (!cameraPermissionsAvailable) {
             permissionsUnavailableLayout.setVisibility(View.VISIBLE);
         } else {
             permissionsUnavailableLayout.setVisibility(View.GONE);
@@ -539,7 +517,7 @@ public class MainActivity extends AppCompatActivity
     void mainWindowResumedTasks() {
 
         //Notify the user that they can't use the app without authorizing these permissions.
-        if (!cameraPermissionsAvailable || !storagePermissionsAvailable) {
+        if (!cameraPermissionsAvailable) { // || !storagePermissionsAvailable) {
             permissionsUnavailableLayout.setVisibility(View.VISIBLE);
             return;
         }
