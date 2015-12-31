@@ -602,11 +602,11 @@ public class MainActivity extends AppCompatActivity
         }
 
         /**
-         * If the user has selected to have facial tracking dots or measurements drawn, we use face.getFacePoints() to send those points
+         * If the user has selected to have any facial attributes drawn, we use face.getFacePoints() to send those points
          * to our drawing thread and also inform the thread what the valence score was, as that will determine the color
          * of the bounding box.
          */
-        if (drawingView.getDrawPointsEnabled() || drawingView.getDrawAppearanceMarkersEnabled()) {
+        if (drawingView.getDrawPointsEnabled() || drawingView.getDrawAppearanceMarkersEnabled() || drawingView.getAlwaysShowDominantMarkersEnabled()) {
             drawingView.updatePoints(faces, mirrorPoints);
         }
     }
