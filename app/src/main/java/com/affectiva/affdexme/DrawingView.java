@@ -35,16 +35,14 @@ import java.util.Map;
  */
 public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
-    private static String LOG_TAG = "AffdexMe";
-    //Static references to bitmaps drawn on the surface
-    private static Bitmap appearanceMarkerBitmap_genderMale_glassesOn;
-    private static Bitmap appearanceMarkerBitmap_genderFemale_glassesOn;
-    private static Bitmap appearanceMarkerBitmap_genderUnknown_glassesOn;
-    private static Bitmap appearanceMarkerBitmap_genderMale_glassesOff;
-    private static Bitmap appearanceMarkerBitmap_genderFemale_glassesOff;
-    private static Map<String, Bitmap> emojiMarkerBitmapToEmojiTypeMap;
-    final float MARGIN = 2;
-    //Class variables of DrawingView class
+    private final static String LOG_TAG = "AffdexMe";
+    private final float MARGIN = 2;
+    private Bitmap appearanceMarkerBitmap_genderMale_glassesOn;
+    private Bitmap appearanceMarkerBitmap_genderFemale_glassesOn;
+    private Bitmap appearanceMarkerBitmap_genderUnknown_glassesOn;
+    private Bitmap appearanceMarkerBitmap_genderMale_glassesOff;
+    private Bitmap appearanceMarkerBitmap_genderFemale_glassesOff;
+    private Map<String, Bitmap> emojiMarkerBitmapToEmojiTypeMap;
     private SurfaceHolder surfaceHolder;
     private DrawingThread drawingThread; //DrawingThread object
     private DrawingViewConfig drawingViewConfig;
@@ -152,17 +150,17 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     public void updateViewDimensions(int surfaceViewWidth, int surfaceViewHeight, int imageWidth, int imageHeight) {
         try {
             drawingViewConfig.updateViewDimensions(surfaceViewWidth, surfaceViewHeight, imageWidth, imageHeight);
-        } catch (Exception e) {
-            Log.e(LOG_TAG, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            Log.e(LOG_TAG, "Attempted to set a dimension with a negative value", e);
         }
     }
 
     public void setThickness(int t) {
-        drawingViewConfig.setDrawThickness(t);
         try {
+            drawingViewConfig.setDrawThickness(t);
             drawingThread.setThickness(t);
-        } catch (Exception e) {
-            Log.e(LOG_TAG, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            Log.e(LOG_TAG, "Attempted to set a thickness with a negative value", e);
         }
     }
 
@@ -428,27 +426,27 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         private void drawAppearanceMarkers(Canvas c, Face f, Rect boundingBox) {
-            float markerPoxX = boundingBox.left - MARGIN;
+            float markerPosX = boundingBox.left - MARGIN;
             float markerPosY = boundingBox.top;  //start aligned to the top of the box
 
             switch (f.appearance.getGender()) {
                 case MALE:
                     if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderMale_glassesOn, markerPoxX - appearanceMarkerBitmap_genderMale_glassesOn.getWidth(), markerPosY, boxPaint);
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderMale_glassesOn, markerPosX - appearanceMarkerBitmap_genderMale_glassesOn.getWidth(), markerPosY, boxPaint);
                     } else {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderMale_glassesOff, markerPoxX - appearanceMarkerBitmap_genderMale_glassesOff.getWidth(), markerPosY, boxPaint);
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderMale_glassesOff, markerPosX - appearanceMarkerBitmap_genderMale_glassesOff.getWidth(), markerPosY, boxPaint);
                     }
                     break;
                 case FEMALE:
                     if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderFemale_glassesOn, markerPoxX - appearanceMarkerBitmap_genderFemale_glassesOn.getWidth(), markerPosY, boxPaint);
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderFemale_glassesOn, markerPosX - appearanceMarkerBitmap_genderFemale_glassesOn.getWidth(), markerPosY, boxPaint);
                     } else {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderFemale_glassesOff, markerPoxX - appearanceMarkerBitmap_genderFemale_glassesOff.getWidth(), markerPosY, boxPaint);
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderFemale_glassesOff, markerPosX - appearanceMarkerBitmap_genderFemale_glassesOff.getWidth(), markerPosY, boxPaint);
                     }
                     break;
                 case UNKNOWN:
                     if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderUnknown_glassesOn, markerPoxX - appearanceMarkerBitmap_genderUnknown_glassesOn.getWidth(), markerPosY, boxPaint);
+                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderUnknown_glassesOn, markerPosX - appearanceMarkerBitmap_genderUnknown_glassesOn.getWidth(), markerPosY, boxPaint);
                     }
                     break;
                 default:
@@ -469,7 +467,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         private void drawDominantEmotion(Canvas c, Face f, Rect boundingBox) {
             Pair<String, Float> dominantMetric = findDominantEmotion(f);
 
-            if (dominantMetric.first.isEmpty()) {
+            if (dominantMetric == null || dominantMetric.first.isEmpty()) {
                 return;
             }
 
@@ -483,7 +481,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
         private Pair<String, Float> findDominantEmotion(Face f) {
             String dominantMetricName = "";
-            Float dominantMetricValue = Float.MIN_VALUE;
+            Float dominantMetricValue = 0.5f; // no emotion is dominant unless at least greater than this value
 
             if (f.emotions.getAnger() > dominantMetricValue) {
                 dominantMetricName = MetricsManager.getCapitalizedName(MetricsManager.Emotions.ANGER);
@@ -518,7 +516,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 dominantMetricValue = f.emotions.getSurprise();
             }
 
-            return new Pair<>(dominantMetricName, dominantMetricValue);
+            if (dominantMetricName.isEmpty()) {
+                return null;
+            } else {
+                return new Pair<>(dominantMetricName, dominantMetricValue);
+            }
         }
 
         void drawEmojiFromCache(Canvas c, String emojiName, float markerPosX, float markerPosY) {

@@ -9,7 +9,7 @@
     <string name="settings_content_description">Settings</string>
 
     <string name="insufficient_permissions">Insufficient Permissions</string>
-    <string name="permissions_needed_explanation">This app requires the permission to access your camera to be able to gather facial images to process, and permission to write to the storage on your device so that we can temporarily store video data there while we process it.</string>
+    <string name="permissions_needed_explanation">This app requires the permission to access your camera to be able to gather facial images to process</string>
     <string name="error">Error</string>
     <string name="understood">Understood</string>
     <string name="retry">Retry</string>
