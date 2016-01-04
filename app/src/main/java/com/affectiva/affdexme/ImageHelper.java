@@ -116,4 +116,28 @@ public class ImageHelper {
             return null;
         }
     }
+
+    public static void preproccessImageIfNecessary(Context context, String fileName, String resourceName) {
+        // Set this to true to force the app to always load the images for debugging purposes
+        final boolean DEBUG = false;
+
+        if (ImageHelper.checkIfImageFileExists(context, fileName)) {
+            // Image file already exists, no need to load the file again.
+
+            if (DEBUG) {
+                Log.d(LOG_TAG, "DEBUG: Deleting: " + fileName);
+                ImageHelper.deleteImageFile(context, fileName);
+            } else {
+                return;
+            }
+        }
+
+        try {
+            ImageHelper.resizeAndSaveResourceImageToInternalStorage(context, fileName, resourceName);
+            Log.d(LOG_TAG, "Resized and saved image: " + fileName);
+        } catch (FileNotFoundException e) {
+            Log.e(LOG_TAG, "Unable to process image: " + fileName, e);
+            throw new RuntimeException(e);
+        }
+    }
 }

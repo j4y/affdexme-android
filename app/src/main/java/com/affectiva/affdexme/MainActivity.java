@@ -37,7 +37,7 @@ import com.affectiva.android.affdex.sdk.detector.CameraDetector;
 import com.affectiva.android.affdex.sdk.detector.Detector;
 import com.affectiva.android.affdex.sdk.detector.Face;
 
-import java.io.FileNotFoundException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -135,39 +135,16 @@ public class MainActivity extends AppCompatActivity
         for (Face.EMOJI emoji : Face.EMOJI.values()) {
             String emojiResourceName = emoji.name().trim().replace(' ', '_').toLowerCase(Locale.US).concat("_emoji");
             String emojiFileName = emojiResourceName + ".png";
-            preprocessImageIfNecessary(context, emojiFileName, emojiResourceName);
+            ImageHelper.preproccessImageIfNecessary(context, emojiFileName, emojiResourceName);
         }
 
-        preprocessImageIfNecessary(context, "female_red_glasses_alpha.png", "female_red_glasses_alpha");
-        preprocessImageIfNecessary(context, "female_red_noglasses_alpha.png", "female_red_noglasses_alpha");
-        preprocessImageIfNecessary(context, "male_green_glasses_alpha.png", "male_green_glasses_alpha");
-        preprocessImageIfNecessary(context, "male_green_noglasses_alpha.png", "male_green_noglasses_alpha");
-        preprocessImageIfNecessary(context, "unknown_glasses_alpha.png", "unknown_glasses_alpha");
+        ImageHelper.preproccessImageIfNecessary(context, "female_red_glasses_alpha.png", "female_red_glasses_alpha");
+        ImageHelper.preproccessImageIfNecessary(context, "female_red_noglasses_alpha.png", "female_red_noglasses_alpha");
+        ImageHelper.preproccessImageIfNecessary(context, "male_green_glasses_alpha.png", "male_green_glasses_alpha");
+        ImageHelper.preproccessImageIfNecessary(context, "male_green_noglasses_alpha.png", "male_green_noglasses_alpha");
+        ImageHelper.preproccessImageIfNecessary(context, "unknown_glasses_alpha.png", "unknown_glasses_alpha");
     }
 
-    private void preprocessImageIfNecessary(Context context, String fileName, String resourceName) {
-        // Set this to true to force the app to always load the images for debugging purposes
-        final boolean DEBUG = false;
-
-        if (ImageHelper.checkIfImageFileExists(context, fileName)) {
-            // Image file already exists, no need to load the file again.
-
-            if (DEBUG) {
-                Log.d(LOG_TAG, "DEBUG: Deleting: " + fileName);
-                ImageHelper.deleteImageFile(context, fileName);
-            } else {
-                return;
-            }
-        }
-
-        try {
-            ImageHelper.resizeAndSaveResourceImageToInternalStorage(context, fileName, resourceName);
-            Log.d(LOG_TAG, "Resized and saved image: " + fileName);
-        } catch (FileNotFoundException e) {
-            Log.e(LOG_TAG, "Unable to process image: " + fileName, e);
-            throw new RuntimeException(e);
-        }
-    }
 
     private void checkForDangerousPermissions() {
         cameraPermissionsAvailable =
@@ -454,6 +431,7 @@ public class MainActivity extends AppCompatActivity
     void activateMetric(int index, MetricsManager.Metrics metric) {
 
         Method getFaceScoreMethod = null; //The method that will be used to get a metric score
+
         try {
             switch (metric.getType()) {
                 case Emotion:
@@ -481,8 +459,12 @@ public class MainActivity extends AppCompatActivity
                     getFaceScoreMethod = Face.Emojis.class.getMethod("get" + MetricsManager.getCamelCase(metric));
                     break;
             }
-        } catch (Exception e) {
-            Log.e(LOG_TAG, String.format("Error using reflection to generate methods for %s", metric.toString()));
+        } catch (NoSuchMethodException e) {
+            Log.e(LOG_TAG, String.format("No such method while using reflection to generate methods for %s", metric.toString()), e);
+        } catch (InvocationTargetException e) {
+            Log.e(LOG_TAG, String.format("Invocation error while using reflection to generate methods for %s", metric.toString()), e);
+        } catch (IllegalAccessException e) {
+            Log.e(LOG_TAG, String.format("Illegal access error while using reflection to generate methods for %s", metric.toString()), e);
         }
 
         metricDisplays[index].setMetricToDisplay(metric, getFaceScoreMethod);

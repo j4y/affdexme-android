@@ -481,7 +481,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
         private Pair<String, Float> findDominantEmotion(Face f) {
             String dominantMetricName = "";
-            Float dominantMetricValue = 0.5f; // no emotion is dominant unless at least greater than this value
+            Float dominantMetricValue = 50.0f; // no emotion is dominant unless at least greater than this value
 
             if (f.emotions.getAnger() > dominantMetricValue) {
                 dominantMetricName = MetricsManager.getCapitalizedName(MetricsManager.Emotions.ANGER);
