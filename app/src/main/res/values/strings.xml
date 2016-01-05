@@ -1,3 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  - Copyright (c) 2016 Affectiva Inc.
+  - See the file license.txt for copying permission.
+  -->
+
 <resources>
     <string name="app_name">AffdexMe</string>
 
@@ -32,11 +39,11 @@
     <string name="show_tracking_title">Show Tracking Dots</string>
     <string name="show_tracking_message">Display tracking dots and bounding box.</string>
     <string name="show_appearance_title">Show Appearance Indicators</string>
-    <string name="show_appearance_message">Display appearance markers to the left of the bounding box.</string>
-    <string name="show_measurements_title">Show Measurements</string>
-    <string name="show_measurements_message">Display roll, yaw, pitch, and interocular distance.</string>
+    <string name="show_appearance_message">Display appearance markers adjacent to the bounding box.</string>
     <string name="show_fps_title">Show FPS</string>
     <string name="show_fps_message">Display the actual processed frames per second.</string>
+    <string name="show_dominant_title">Always show dominant metrics</string>
+    <string name="show_dominant_message">When this is on, the dominant emoji and emotion will always be displayed adjacent to the detected face.</string>
     <string name="negative">NEGATIVE</string>
     <string name="positive">POSITIVE</string>
 </resources>

@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  - Copyright (c) 2016 Affectiva Inc.
+  - See the file license.txt for copying permission.
+  -->
+
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <CheckBoxPreference
         android:defaultValue="false"
@@ -27,7 +33,6 @@
     <CheckBoxPreference
         android:defaultValue="false"
         android:key="showDominant"
-        android:summary="When this is on, the dominant emoji and emotion will always be displayed adjacent to the detected face."
-        android:title="Always show dominant metrics" />
-
+        android:summary="@string/show_dominant_message"
+        android:title="@string/show_dominant_title" />
 </PreferenceScreen>
