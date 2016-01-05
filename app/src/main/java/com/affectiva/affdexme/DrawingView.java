@@ -40,6 +40,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     private Bitmap appearanceMarkerBitmap_genderMale_glassesOn;
     private Bitmap appearanceMarkerBitmap_genderFemale_glassesOn;
     private Bitmap appearanceMarkerBitmap_genderUnknown_glassesOn;
+    private Bitmap appearanceMarkerBitmap_genderUnknown_glassesOff;
     private Bitmap appearanceMarkerBitmap_genderMale_glassesOff;
     private Bitmap appearanceMarkerBitmap_genderFemale_glassesOff;
     private Map<String, Bitmap> emojiMarkerBitmapToEmojiTypeMap;
@@ -217,6 +218,9 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         if (appearanceMarkerBitmap_genderUnknown_glassesOn != null) {
             appearanceMarkerBitmap_genderUnknown_glassesOn.recycle();
         }
+        if (appearanceMarkerBitmap_genderUnknown_glassesOff != null) {
+            appearanceMarkerBitmap_genderUnknown_glassesOff.recycle();
+        }
         if (appearanceMarkerBitmap_genderMale_glassesOff != null) {
             appearanceMarkerBitmap_genderMale_glassesOff.recycle();
         }
@@ -248,11 +252,12 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             mSurfaceHolder = surfaceHolder;
 
             //statically load the Appearance marker bitmaps so they only have to load once
-            appearanceMarkerBitmap_genderMale_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "male_green_glasses_alpha.png");
-            appearanceMarkerBitmap_genderMale_glassesOff = ImageHelper.loadBitmapFromInternalStorage(getContext(), "male_green_noglasses_alpha.png");
-            appearanceMarkerBitmap_genderFemale_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "female_red_glasses_alpha.png");
-            appearanceMarkerBitmap_genderFemale_glassesOff = ImageHelper.loadBitmapFromInternalStorage(getContext(), "female_red_noglasses_alpha.png");
-            appearanceMarkerBitmap_genderUnknown_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "unknown_glasses_alpha.png");
+            appearanceMarkerBitmap_genderMale_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "male_glasses.png");
+            appearanceMarkerBitmap_genderMale_glassesOff = ImageHelper.loadBitmapFromInternalStorage(getContext(), "male_noglasses.png");
+            appearanceMarkerBitmap_genderFemale_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "female_glasses.png");
+            appearanceMarkerBitmap_genderFemale_glassesOff = ImageHelper.loadBitmapFromInternalStorage(getContext(), "female_noglasses.png");
+            appearanceMarkerBitmap_genderUnknown_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "unknown_glasses.png");
+            appearanceMarkerBitmap_genderUnknown_glassesOff = ImageHelper.loadBitmapFromInternalStorage(getContext(), "unknown_noglasses.png");
 
             circlePaint = new Paint();
             circlePaint.setColor(Color.WHITE);
@@ -426,31 +431,34 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         private void drawAppearanceMarkers(Canvas c, Face f, Rect boundingBox) {
-            float markerPosX = boundingBox.left - MARGIN;
-            float markerPosY = boundingBox.top;  //start aligned to the top of the box
-
+            Bitmap bitmap = null;
             switch (f.appearance.getGender()) {
                 case MALE:
                     if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderMale_glassesOn, markerPosX - appearanceMarkerBitmap_genderMale_glassesOn.getWidth(), markerPosY, boxPaint);
+                        bitmap = appearanceMarkerBitmap_genderMale_glassesOn;
                     } else {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderMale_glassesOff, markerPosX - appearanceMarkerBitmap_genderMale_glassesOff.getWidth(), markerPosY, boxPaint);
+                        bitmap = appearanceMarkerBitmap_genderMale_glassesOff;
                     }
                     break;
                 case FEMALE:
                     if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderFemale_glassesOn, markerPosX - appearanceMarkerBitmap_genderFemale_glassesOn.getWidth(), markerPosY, boxPaint);
+                        bitmap = appearanceMarkerBitmap_genderFemale_glassesOn;
                     } else {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderFemale_glassesOff, markerPosX - appearanceMarkerBitmap_genderFemale_glassesOff.getWidth(), markerPosY, boxPaint);
+                        bitmap = appearanceMarkerBitmap_genderFemale_glassesOff;
                     }
                     break;
                 case UNKNOWN:
                     if (Face.GLASSES.YES.equals(f.appearance.getGlasses())) {
-                        drawBitmapIfNotRecycled(c, appearanceMarkerBitmap_genderUnknown_glassesOn, markerPosX - appearanceMarkerBitmap_genderUnknown_glassesOn.getWidth(), markerPosY, boxPaint);
+                        bitmap = appearanceMarkerBitmap_genderUnknown_glassesOn;
+                    } else {
+                        bitmap = appearanceMarkerBitmap_genderUnknown_glassesOff;
                     }
                     break;
                 default:
                     Log.e(LOG_TAG, "Unknown gender: " + f.appearance.getGender());
+            }
+            if (bitmap != null) {
+                drawBitmapIfNotRecycled(c, bitmap, boundingBox.right + MARGIN, boundingBox.bottom - bitmap.getHeight(), boxPaint);
             }
         }
 
@@ -524,6 +532,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         void drawEmojiFromCache(Canvas c, String emojiName, float markerPosX, float markerPosY) {
+            // Nothing to draw if emoji is unknown
+            if (emojiName.equals(Face.EMOJI.UNKNOWN.name())) {
+                return;
+            }
+
             Bitmap emojiBitmap;
 
             try {

@@ -133,16 +133,20 @@ public class MainActivity extends AppCompatActivity
         Context context = getBaseContext();
 
         for (Face.EMOJI emoji : Face.EMOJI.values()) {
+            if (emoji.equals(Face.EMOJI.UNKNOWN)) {
+                continue;
+            }
             String emojiResourceName = emoji.name().trim().replace(' ', '_').toLowerCase(Locale.US).concat("_emoji");
             String emojiFileName = emojiResourceName + ".png";
             ImageHelper.preproccessImageIfNecessary(context, emojiFileName, emojiResourceName);
         }
 
-        ImageHelper.preproccessImageIfNecessary(context, "female_red_glasses_alpha.png", "female_red_glasses_alpha");
-        ImageHelper.preproccessImageIfNecessary(context, "female_red_noglasses_alpha.png", "female_red_noglasses_alpha");
-        ImageHelper.preproccessImageIfNecessary(context, "male_green_glasses_alpha.png", "male_green_glasses_alpha");
-        ImageHelper.preproccessImageIfNecessary(context, "male_green_noglasses_alpha.png", "male_green_noglasses_alpha");
-        ImageHelper.preproccessImageIfNecessary(context, "unknown_glasses_alpha.png", "unknown_glasses_alpha");
+        ImageHelper.preproccessImageIfNecessary(context, "female_glasses.png", "female_glasses");
+        ImageHelper.preproccessImageIfNecessary(context, "female_noglasses.png", "female_noglasses");
+        ImageHelper.preproccessImageIfNecessary(context, "male_glasses.png", "male_glasses");
+        ImageHelper.preproccessImageIfNecessary(context, "male_noglasses.png", "male_noglasses");
+        ImageHelper.preproccessImageIfNecessary(context, "unknown_glasses.png", "unknown_glasses");
+        ImageHelper.preproccessImageIfNecessary(context, "unknown_noglasses.png", "unknown_noglasses");
     }
 
 
