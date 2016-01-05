@@ -1,7 +1,8 @@
-**********
-* Copyright (c) 2016 Affectiva Inc.
-* See the file license.txt for copying permission.
-**********
+![Affectiva Logo](http://developer.affectiva.com/images/logo.png)
+
+###Copyright (c) 2016 Affectiva Inc. <br> See the file [license.txt](license.txt) for copying permission.
+
+*****************************
 
 **AffdexMe** is an app that demonstrates the use of the Affectiva Android SDK.  It uses the camera on your Android device to view, process and analyze live video of your face. Start the app and you will see your face on the screen and metrics describing your expressions. Tapping the screen will bring up a menu with options to display the Processed Frames Per Second metric, display facial tracking points, and control the rate at which frames are processed by the SDK.
 
@@ -19,5 +20,3 @@ In order to use this project, you will need to:
 - Run the app and smile!
 
 See the comment section at the top of the MainActivity.java file for more information.
-
-Copyright (c) 2014-2015 Affectiva. All rights reserved.
