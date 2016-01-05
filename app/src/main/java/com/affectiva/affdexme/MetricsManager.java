@@ -136,13 +136,11 @@ public class MetricsManager {
         RELAXED,
         SMILEY,
         LAUGHING,
-        KISSING_CLOSED_EYES,
         KISSING,
         DISAPPOINTED,
         RAGE,
         SMIRK,
         WINK,
-        STUCK_OUT_TONGUE_CLOSED_EYES,
         STUCK_OUT_TONGUE_WINKING_EYE,
         STUCK_OUT_TONGUE,
         FLUSHED,
@@ -161,8 +159,6 @@ public class MetricsManager {
                     return Face.EMOJI.SMILEY.getUnicode();
                 case LAUGHING:
                     return Face.EMOJI.LAUGHING.getUnicode();
-                case KISSING_CLOSED_EYES:
-                    return Face.EMOJI.KISSING_CLOSED_EYES.getUnicode();
                 case KISSING:
                     return Face.EMOJI.KISSING.getUnicode();
                 case DISAPPOINTED:
@@ -173,8 +169,6 @@ public class MetricsManager {
                     return Face.EMOJI.SMIRK.getUnicode();
                 case WINK:
                     return Face.EMOJI.WINK.getUnicode();
-                case STUCK_OUT_TONGUE_CLOSED_EYES:
-                    return Face.EMOJI.STUCK_OUT_TONGUE_CLOSED_EYES.getUnicode();
                 case STUCK_OUT_TONGUE_WINKING_EYE:
                     return Face.EMOJI.STUCK_OUT_TONGUE_WINKING_EYE.getUnicode();
                 case STUCK_OUT_TONGUE:

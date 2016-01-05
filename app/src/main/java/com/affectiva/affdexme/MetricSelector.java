@@ -10,6 +10,7 @@ import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.TextureView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
@@ -26,6 +27,7 @@ public class MetricSelector extends FrameLayout {
     TextView gridItemTextView;
     ImageView imageView;
     ImageView imageViewBeneath;
+    FrameLayout videoHolder;
     RelativeLayout backgroundLayout;
     int itemNotSelectedColor;
     int itemSelectedColor;
@@ -35,6 +37,7 @@ public class MetricSelector extends FrameLayout {
     TextView videoOverlay;
     int picId;
     private boolean isMetricSelected;
+    private boolean isEmoji;
     private MetricsManager.Metrics metric;
 
     // These three constructors only provided to allow the UI Editor to properly render this element
@@ -56,6 +59,10 @@ public class MetricSelector extends FrameLayout {
         this.metric = metric;
         this.isMetricSelected = false;
 
+        if (metric.getType().equals(MetricsManager.MetricType.Emoji)) {
+            this.isEmoji = true;
+        }
+
         initContent(inflater, res, packageName);
     }
 
@@ -67,7 +74,9 @@ public class MetricSelector extends FrameLayout {
         videoOverlay = (TextView) content.findViewById(R.id.video_overlay);
 
         int videoId = res.getIdentifier(resourceName, "raw", packageName);
-        if (metric == MetricsManager.Emotions.VALENCE) {
+        if (isEmoji) {
+            videoResourceURIs = null;
+        } else if (metric == MetricsManager.Emotions.VALENCE) {
             videoResourceURIs = new Uri[2];
             videoResourceURIs[0] = Uri.parse(String.format("android.resource://%s/%d", packageName, videoId));
             videoResourceURIs[1] = Uri.parse(String.format("android.resource://%s/%d", packageName, res.getIdentifier(resourceName + "0", "raw", packageName)));
@@ -79,7 +88,7 @@ public class MetricSelector extends FrameLayout {
         videoResourceURIIndex = 0;
 
         //set up image
-        if (metric.getType().equals(MetricsManager.MetricType.Emoji)) {
+        if (isEmoji) {
             resourceName += "_emoji";
         }
         picId = res.getIdentifier(resourceName, "drawable", packageName);
@@ -89,6 +98,7 @@ public class MetricSelector extends FrameLayout {
         imageViewBeneath.setImageResource(picId);
         imageViewBeneath.setVisibility(GONE);
 
+        videoHolder = (FrameLayout) content.findViewById(R.id.video_holder);
         backgroundLayout = (RelativeLayout) content.findViewById(R.id.grid_item_background);
 
         gridItemTextView = (TextView) content.findViewById(R.id.grid_item_text);
@@ -119,7 +129,15 @@ public class MetricSelector extends FrameLayout {
 
     void displayVideo(TextureView videoView) {
         textureView = videoView;
-        backgroundLayout.addView(textureView, 1);
+        ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(textureView.getLayoutParams());
+
+        // set the video to the same height and width of the actual bitmap inside the imageview
+        int[] imageAttr = ImageHelper.getBitmapPositionInsideImageView(imageView);
+        params.width = imageAttr[2]; //width
+        params.height = imageAttr[3]; //height
+
+        textureView.setLayoutParams(params);
+        videoHolder.addView(textureView);
         textureView.setVisibility(VISIBLE);
         videoOverlay.setVisibility(VISIBLE);
     }
@@ -127,7 +145,7 @@ public class MetricSelector extends FrameLayout {
     void removeVideo() {
         if (textureView != null) {
             textureView.setVisibility(GONE);
-            backgroundLayout.removeView(textureView);
+            videoHolder.removeView(textureView);
             textureView = null;
         }
         videoOverlay.setVisibility(GONE);
@@ -142,6 +160,9 @@ public class MetricSelector extends FrameLayout {
     }
 
     Uri getNextVideoResourceURI() {
+        if (isEmoji) {
+            return null;
+        }
         if (metric == MetricsManager.Emotions.VALENCE) {
             if (videoResourceURIIndex == 0) {
                 videoOverlay.setText(R.string.negative);

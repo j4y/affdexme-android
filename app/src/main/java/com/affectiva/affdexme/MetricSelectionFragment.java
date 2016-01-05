@@ -444,7 +444,7 @@ public class MetricSelectionFragment extends Fragment implements View.OnClickLis
 
             textureView = new TextureView(getActivity());
             textureView.setVisibility(View.GONE);
-            textureView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            textureView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                 @Override
                 public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -472,8 +472,11 @@ public class MetricSelectionFragment extends Fragment implements View.OnClickLis
         private void startVideoPlayback(MetricSelector metricSelector) {
             videoPlayingSelector = metricSelector;
             videoPlayingSelector.initIndex();
-            safePlayer.setDataSource(metricSelector.getNextVideoResourceURI());
-            metricSelector.displayVideo(textureView); //will cause onSurfaceTextureAvailable to fire
+            Uri videoUri = metricSelector.getNextVideoResourceURI();
+            if (videoUri != null) {
+                safePlayer.setDataSource(videoUri);
+                metricSelector.displayVideo(textureView); //will cause onSurfaceTextureAvailable to fire
+            }
         }
 
         private void endVideoPlayback() {
