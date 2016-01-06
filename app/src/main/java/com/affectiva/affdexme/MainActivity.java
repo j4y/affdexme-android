@@ -575,27 +575,30 @@ public class MainActivity extends AppCompatActivity
         performFPSCalculations();
 
         //If faces.size() is 0, we received a frame in which no face was detected
-        if (faces.size() == 0) {
+        if (faces.size() <= 0) {
             drawingView.invalidatePoints();
-            return;
-        }
-
-        if (faces.size() == 1) {
+        } else if (faces.size() == 1) {
             metricViewLayout.setVisibility(View.VISIBLE);
+
             //update metrics with latest face information. The metrics are displayed on a MetricView, a custom view with a .setScore() method.
             for (MetricDisplay metricDisplay : metricDisplays) {
                 updateMetricScore(metricDisplay, faces.get(0));
             }
-        } else {
-            metricViewLayout.setVisibility(View.GONE);
-        }
 
-        /**
-         * If the user has selected to have any facial attributes drawn, we use face.getFacePoints() to send those points
-         * to our drawing thread and also inform the thread what the valence score was, as that will determine the color
-         * of the bounding box.
-         */
-        if (drawingView.getDrawPointsEnabled() || drawingView.getDrawAppearanceMarkersEnabled() || drawingView.getAlwaysShowDominantMarkersEnabled()) {
+            /**
+             * If the user has selected to have any facial attributes drawn, we use face.getFacePoints() to send those points
+             * to our drawing thread and also inform the thread what the valence score was, as that will determine the color
+             * of the bounding box.
+             */
+            if (drawingView.getDrawPointsEnabled() || drawingView.getDrawAppearanceMarkersEnabled() || drawingView.getAlwaysShowDominantMarkersEnabled()) {
+                drawingView.updatePoints(faces, mirrorPoints);
+            }
+
+        } else {
+            // metrics overlay is hidden in multi face mode
+            metricViewLayout.setVisibility(View.GONE);
+
+            // always update points in multi face mode
             drawingView.updatePoints(faces, mirrorPoints);
         }
     }
