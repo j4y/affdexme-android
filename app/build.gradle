@@ -37,3 +37,18 @@ dependencies {
     compile 'com.android.support:support-v4:23.1.1'
     compile 'com.android.support:appcompat-v7:23.1.1'
 }
+
+// build a signed release apk only if the environment is configured
+// with the properties that let us access the keystore.  you can put
+// them into ~/.gradle/gradle.properties
+if (project.hasProperty('releaseKeystoreFile')) {
+    android.signingConfigs {
+        release {
+            storeFile file(releaseKeystoreFile)
+            storePassword releaseKeystorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
+        }
+    }
+    android.buildTypes.release.signingConfig = android.signingConfigs.release
+}
