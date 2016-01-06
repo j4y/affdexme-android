@@ -12,7 +12,12 @@ android {
         versionName "2.1.0"
     }
     buildTypes {
+        debug {
+            resValue 'string', 'app_name', 'AffdexMeDbg'
+            applicationIdSuffix ".debug"
+        }
         release {
+            resValue 'string', 'app_name', 'AffdexMe'
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
