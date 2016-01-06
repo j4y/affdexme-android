@@ -41,7 +41,7 @@ import java.util.Map;
 public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     private final static String LOG_TAG = "AffdexMe";
-    private final float MARGIN = 2;
+    private final float MARGIN = 4;
     private Bitmap appearanceMarkerBitmap_genderMale_glassesOn;
     private Bitmap appearanceMarkerBitmap_genderFemale_glassesOn;
     private Bitmap appearanceMarkerBitmap_genderUnknown_glassesOn;
@@ -56,56 +56,83 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     //three constructors required of any custom view
     public DrawingView(Context context) {
         super(context);
-        initView(null);
+        initView();
     }
 
     public DrawingView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        initView(attrs);
+        initView();
     }
 
     public DrawingView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-        initView(attrs);
+        initView();
     }
 
     private static int getDrawable(@NonNull Context context, @NonNull String name) {
         return context.getResources().getIdentifier(name, "drawable", context.getPackageName());
     }
 
-    void initView(AttributeSet attrs) {
+    void initView() {
         surfaceHolder = getHolder(); //The SurfaceHolder object will be used by the thread to request canvas to draw on SurfaceView
         surfaceHolder.setFormat(PixelFormat.TRANSPARENT); //set to Transparent so this surfaceView does not obscure the one it is overlaying (the one displaying the camera).
         surfaceHolder.addCallback(this); //become a Listener to the three events below that SurfaceView generates
 
         drawingViewConfig = new DrawingViewConfig();
 
-        //default values
-        int textSize = 15;
+        //Default values
+        Paint emotionLabelPaint = new Paint();
+        emotionLabelPaint.setColor(Color.parseColor("#ff8000")); //Orange
+        emotionLabelPaint.setStyle(Paint.Style.FILL);
+        emotionLabelPaint.setTextAlign(Paint.Align.CENTER);
+        emotionLabelPaint.setTextSize(48);
 
-        Paint measurementTextPaint = new Paint();
-        measurementTextPaint.setStyle(Paint.Style.FILL);
-        measurementTextPaint.setTextAlign(Paint.Align.CENTER);
+        Paint emotionValuePaint = new Paint();
+        emotionValuePaint.setColor(Color.parseColor("#514a40")); //Grey
+        emotionValuePaint.setStyle(Paint.Style.FILL);
+        emotionValuePaint.setTextAlign(Paint.Align.CENTER);
+        emotionValuePaint.setTextSize(48);
 
-        Paint dropShadow = new Paint();
-        dropShadow.setColor(Color.BLACK);
-        dropShadow.setStyle(Paint.Style.STROKE);
-        dropShadow.setTextAlign(Paint.Align.CENTER);
+        Paint metricBarPaint = new Paint();
+        metricBarPaint.setColor(Color.GREEN);
+        metricBarPaint.setStyle(Paint.Style.FILL);
+        int metricBarWidth = 150;
 
         //load and parse XML attributes
-        if (attrs != null) {
-            TypedArray a = getContext().obtainStyledAttributes(attrs, R.styleable.drawing_view_attributes, 0, 0);
-            measurementTextPaint.setColor(a.getColor(R.styleable.drawing_view_attributes_measurements_color, Color.WHITE));
-            dropShadow.setColor(a.getColor(R.styleable.drawing_view_attributes_measurements_text_border_color, Color.BLACK));
-            dropShadow.setStrokeWidth(a.getInteger(R.styleable.drawing_view_attributes_measurements_text_border_thickness, 5));
-            textSize = a.getDimensionPixelSize(R.styleable.drawing_view_attributes_measurements_text_size, textSize);
-            measurementTextPaint.setTextSize(textSize);
-            dropShadow.setTextSize(textSize);
+        int[] emotionLabelAttrs = {
+                android.R.attr.textStyle,      // 0
+                android.R.attr.textColor,      // 1
+                android.R.attr.shadowColor,    // 2
+                android.R.attr.shadowDy,       // 3
+                android.R.attr.shadowRadius,   // 4
+                android.R.attr.layout_weight,  // 5
+                android.R.attr.textSize};      // 6
+        TypedArray a = getContext().obtainStyledAttributes(R.style.metricName, emotionLabelAttrs);
+        if (a != null) {
+            emotionLabelPaint.setColor(a.getColor(1, emotionLabelPaint.getColor()));
+            emotionLabelPaint.setShadowLayer(
+                    a.getFloat(4, 1.0f),
+                    a.getFloat(3, 2.0f), a.getFloat(3, 2.0f),
+                    a.getColor(2, Color.BLACK));
+            emotionLabelPaint.setTextSize(a.getDimensionPixelSize(6, 48));
+            emotionLabelPaint.setFakeBoldText("bold".equalsIgnoreCase(a.getString(0)));
             a.recycle();
         }
 
-        drawingViewConfig.setMeasurementMetricConfigs(measurementTextPaint, dropShadow);
+        int[] emotionValueAttrs = {
+                android.R.attr.textColor,         // 0
+                android.R.attr.textSize,          // 1
+                R.styleable.custom_attributes_metricBarLength};  // 2
+        a = getContext().obtainStyledAttributes(R.style.metricPct, emotionValueAttrs);
+        if (a != null) {
+            emotionValuePaint.setColor(a.getColor(0, emotionValuePaint.getColor()));
+            emotionValuePaint.setTextSize(a.getDimensionPixelSize(1, 36));
+            metricBarWidth = a.getDimensionPixelSize(2, 150);
+            a.recycle();
+        }
 
+        drawingViewConfig.setDominantEmotionLabelPaints(emotionLabelPaint, emotionValuePaint);
+        drawingViewConfig.setDominantEmotionMetricBarConfig(metricBarPaint, metricBarWidth);
         drawingThread = new DrawingThread(surfaceHolder, drawingViewConfig);
 
         //statically load the emoji bitmaps on-demand and cache
@@ -113,8 +140,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public void setTypeface(Typeface face) {
-        drawingViewConfig.textPaint.setTypeface(face);
-        drawingViewConfig.textBorderPaint.setTypeface(face);
+        drawingViewConfig.dominantEmotionLabelPaint.setTypeface(face);
+        drawingViewConfig.dominantEmotionValuePaint.setTypeface(face);
     }
 
     @Override
@@ -248,8 +275,9 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     class DrawingThread extends Thread {
         private final FacesSharer sharer;
         private final SurfaceHolder mSurfaceHolder;
-        private Paint circlePaint;
-        private Paint boxPaint;
+        private Paint trackingPointsPaint;
+        private Paint boundingBoxPaint;
+        private Paint dominantEmotionScoreBarPaint;
         private volatile boolean stopFlag = false; //boolean to indicate when thread has been told to stop
         private DrawingViewConfig config;
 
@@ -264,11 +292,14 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             appearanceMarkerBitmap_genderUnknown_glassesOn = ImageHelper.loadBitmapFromInternalStorage(getContext(), "unknown_glasses.png");
             appearanceMarkerBitmap_genderUnknown_glassesOff = ImageHelper.loadBitmapFromInternalStorage(getContext(), "unknown_noglasses.png");
 
-            circlePaint = new Paint();
-            circlePaint.setColor(Color.WHITE);
-            boxPaint = new Paint();
-            boxPaint.setColor(Color.WHITE);
-            boxPaint.setStyle(Paint.Style.STROKE);
+            trackingPointsPaint = new Paint();
+            trackingPointsPaint.setColor(Color.WHITE);
+            boundingBoxPaint = new Paint();
+            boundingBoxPaint.setColor(Color.WHITE);
+            boundingBoxPaint.setStyle(Paint.Style.STROKE);
+            dominantEmotionScoreBarPaint = new Paint();
+            dominantEmotionScoreBarPaint.setColor(Color.GREEN);
+            dominantEmotionScoreBarPaint.setStyle(Paint.Style.STROKE);
 
             config = con;
             sharer = new FacesSharer();
@@ -280,10 +311,10 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             //prepare the color of the bounding box using the valence score. Red for -100, White for 0, and Green for +100, with linear interpolation in between.
             if (valence > 0) {
                 float colorScore = ((100f - valence) / 100f) * 255;
-                boxPaint.setColor(Color.rgb((int) colorScore, 255, (int) colorScore));
+                boundingBoxPaint.setColor(Color.rgb((int) colorScore, 255, (int) colorScore));
             } else {
                 float colorScore = ((100f + valence) / 100f) * 255;
-                boxPaint.setColor(Color.rgb(255, (int) colorScore, (int) colorScore));
+                boundingBoxPaint.setColor(Color.rgb(255, (int) colorScore, (int) colorScore));
             }
         }
 
@@ -307,7 +338,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         void setThickness(int thickness) {
-            boxPaint.setStrokeWidth(thickness);
+            boundingBoxPaint.setStrokeWidth(thickness);
         }
 
         //Inform thread face detection has stopped, so pending faces are no longer valid.
@@ -405,7 +436,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
                 //Draw facial tracking dots.
                 if (config.isDrawPointsEnabled) {
-                    c.drawCircle(x, y, config.drawThickness, circlePaint);
+                    c.drawCircle(x, y, config.drawThickness, trackingPointsPaint);
                 }
             }
 
@@ -432,7 +463,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                     boundingBox.top,
                     boundingBox.right,
                     boundingBox.bottom,
-                    boxPaint);
+                    boundingBoxPaint);
         }
 
         private void drawAppearanceMarkers(Canvas c, Face f, Rect boundingBox) {
@@ -463,13 +494,13 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                     Log.e(LOG_TAG, "Unknown gender: " + f.appearance.getGender());
             }
             if (bitmap != null) {
-                drawBitmapIfNotRecycled(c, bitmap, boundingBox.right + MARGIN, boundingBox.bottom - bitmap.getHeight(), boxPaint);
+                drawBitmapIfNotRecycled(c, bitmap, boundingBox.right + MARGIN, boundingBox.bottom - bitmap.getHeight());
             }
         }
 
-        private void drawBitmapIfNotRecycled(Canvas c, Bitmap b, float posX, float posY, Paint p) {
+        private void drawBitmapIfNotRecycled(Canvas c, Bitmap b, float posX, float posY) {
             if (!b.isRecycled()) {
-                c.drawBitmap(b, posX, posY, p);
+                c.drawBitmap(b, posX, posY, null);
             }
         }
 
@@ -484,12 +515,26 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 return;
             }
 
-            String emotionTextToDraw = dominantMetric.first + ": " + Math.round(dominantMetric.second) + "%";
-            Rect textBounds = new Rect();
-            config.textPaint.getTextBounds(emotionTextToDraw, 0, emotionTextToDraw.length(), textBounds);
+            String emotionText = dominantMetric.first;
+            String emotionValue = Math.round(dominantMetric.second) + "%";
 
-            c.drawText(emotionTextToDraw, boundingBox.exactCenterX(), boundingBox.bottom + MARGIN + textBounds.height(), config.textBorderPaint);
-            c.drawText(emotionTextToDraw, boundingBox.exactCenterX(), boundingBox.bottom + MARGIN + textBounds.height(), config.textPaint);
+            Rect emotionTextBounds = new Rect();
+            config.dominantEmotionLabelPaint.getTextBounds(emotionText, 0, emotionText.length(), emotionTextBounds);
+
+            Rect emotionValueBounds = new Rect();
+            config.dominantEmotionValuePaint.getTextBounds(emotionValue, 0, emotionValue.length(), emotionValueBounds);
+
+            float drawAtX = boundingBox.exactCenterX();
+            float drawAtY = boundingBox.bottom + MARGIN + emotionTextBounds.height();
+            c.drawText(emotionText, drawAtX, drawAtY, config.dominantEmotionLabelPaint);
+
+            //draws the colored bar that appears behind our score
+            drawAtY += MARGIN + emotionValueBounds.height();
+            int halfWidth = Math.round(config.metricBarWidth / 200.0f * dominantMetric.second);
+            c.drawRect(drawAtX - halfWidth, drawAtY - emotionValueBounds.height(), drawAtX + halfWidth, drawAtY, config.dominantEmotionMetricBarPaint);
+
+            //draws the score
+            c.drawText(emotionValue, drawAtX, drawAtY, config.dominantEmotionValuePaint);
         }
 
         private Pair<String, Float> findDominantEmotion(Face f) {
@@ -551,7 +596,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 return;
             }
 
-            c.drawBitmap(emojiBitmap, markerPosX, markerPosY, boxPaint);
+            c.drawBitmap(emojiBitmap, markerPosX, markerPosY, null);
         }
 
         Bitmap getEmojiBitmapByName(String emojiName) throws FileNotFoundException {
@@ -614,12 +659,19 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         private boolean isDrawAppearanceMarkersEnabled = true; //by default, do draw the gender and glasses markers
         private boolean isAlwaysShowDominantMarkersEnabled = false; //by default, do not draw dominant emoji
 
-        private Paint textPaint;
-        private Paint textBorderPaint;
+        private Paint dominantEmotionLabelPaint;
+        private Paint dominantEmotionMetricBarPaint;
+        private Paint dominantEmotionValuePaint;
+        private int metricBarWidth;
 
-        public void setMeasurementMetricConfigs(Paint textPaint, Paint dropShadowPaint) {
-            this.textPaint = textPaint;
-            this.textBorderPaint = dropShadowPaint;
+        public void setDominantEmotionLabelPaints(Paint labelPaint, Paint valuePaint) {
+            dominantEmotionLabelPaint = labelPaint;
+            dominantEmotionValuePaint = valuePaint;
+        }
+
+        public void setDominantEmotionMetricBarConfig(Paint metricBarPaint, int metricBarWidth) {
+            dominantEmotionMetricBarPaint = metricBarPaint;
+            this.metricBarWidth = metricBarWidth;
         }
 
         public void updateViewDimensions(int surfaceViewWidth, int surfaceViewHeight, int imageWidth, int imageHeight) {
