@@ -10,6 +10,7 @@ android {
         targetSdkVersion 23
         versionCode 492
         versionName "2.1.0"
+        setProperty("archivesBaseName", "AffdexMe-$versionName-$versionCode")
     }
     buildTypes {
         debug {
