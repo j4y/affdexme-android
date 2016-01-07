@@ -11,8 +11,13 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -20,6 +25,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.text.format.DateFormat;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -42,9 +48,13 @@ import com.affectiva.android.affdex.sdk.detector.CameraDetector;
 import com.affectiva.android.affdex.sdk.detector.Detector;
 import com.affectiva.android.affdex.sdk.detector.Face;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -85,12 +95,14 @@ public class MainActivity extends AppCompatActivity
     public static final int MAX_SUPPORTED_FACES = 4;
     public static final int NUM_METRICS_DISPLAYED = 6;
     private static final String LOG_TAG = "AffdexMe";
-    private static final int AFFDEXME_PERMISSIONS_REQUEST = 42;  //value is arbitrary (between 0 and 255)
+    private static final int CAMERA_PERMISSIONS_REQUEST = 42;  //value is arbitrary (between 0 and 255)
+    private static final int EXTERNAL_STORAGE_PERMISSIONS_REQUEST = 73;
     int cameraPreviewWidth = 0;
     int cameraPreviewHeight = 0;
     CameraDetector.CameraType cameraType;
     boolean mirrorPoints = false;
     private boolean cameraPermissionsAvailable = false;
+    private boolean storagePermissionsAvailable = false;
     private CameraDetector detector = null;
     private RelativeLayout metricViewLayout;
     private LinearLayout leftMetricsLayout;
@@ -108,6 +120,8 @@ public class MainActivity extends AppCompatActivity
     private DrawingView drawingView; //SurfaceView containing its own thread, used to draw facial tracking dots
     private ImageButton settingsButton;
     private ImageButton cameraButton;
+    private ImageButton screenshotButton;
+    private Frame mostRecentFrame;
     private boolean isMenuVisible = false;
     private boolean isFPSVisible = false;
     private boolean isMenuShowingForFirstTime = true;
@@ -124,7 +138,7 @@ public class MainActivity extends AppCompatActivity
         preproccessMetricImages();
         setContentView(R.layout.activity_main);
         initializeUI();
-        checkForDangerousPermissions();
+        checkForCameraPermissions();
         determineCameraAvailability();
         initializeCameraDetector();
     }
@@ -152,8 +166,7 @@ public class MainActivity extends AppCompatActivity
         ImageHelper.preproccessImageIfNecessary(context, "unknown_noglasses.png", "unknown_noglasses");
     }
 
-
-    private void checkForDangerousPermissions() {
+    private void checkForCameraPermissions() {
         cameraPermissionsAvailable =
                 ContextCompat.checkSelfPermission(
                         getApplicationContext(),
@@ -167,35 +180,65 @@ public class MainActivity extends AppCompatActivity
                 // Show an explanation to the user *asynchronously* -- don't block
                 // this thread waiting for the user's response! After the user
                 // sees the explanation, try again to request the permission.
-                showPermissionExplanationDialog();
+                showPermissionExplanationDialog(CAMERA_PERMISSIONS_REQUEST);
             } else {
                 // No explanation needed, we can request the permission.
-                requestNeededPermissions();
+                requestCameraPermissions();
             }
         }
     }
 
-    private void requestNeededPermissions() {
-        List<String> neededPermissions = new ArrayList<>();
+    private void checkForStoragePermissions() {
+        storagePermissionsAvailable =
+                ContextCompat.checkSelfPermission(
+                        getApplicationContext(),
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
 
         if (!cameraPermissionsAvailable) {
-            neededPermissions.add(Manifest.permission.CAMERA);
+
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+                showPermissionExplanationDialog(EXTERNAL_STORAGE_PERMISSIONS_REQUEST);
+            } else {
+                // No explanation needed, we can request the permission.
+                requestStoragePermissions();
+            }
         }
+    }
 
-        ActivityCompat.requestPermissions(
-                this,
-                neededPermissions.toArray(new String[neededPermissions.size()]),
-                AFFDEXME_PERMISSIONS_REQUEST);
+    private void requestStoragePermissions() {
+        if (!storagePermissionsAvailable) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    EXTERNAL_STORAGE_PERMISSIONS_REQUEST);
 
-        // AFFDEXME_PERMISSIONS_REQUEST is an app-defined int constant that must be between 0 and 255.
-        // The callback method gets the result of the request.
+            // EXTERNAL_STORAGE_PERMISSIONS_REQUEST is an app-defined int constant that must be between 0 and 255.
+            // The callback method gets the result of the request.
+        }
+    }
+
+    private void requestCameraPermissions() {
+        if (!cameraPermissionsAvailable) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.CAMERA},
+                    CAMERA_PERMISSIONS_REQUEST);
+
+            // CAMERA_PERMISSIONS_REQUEST is an app-defined int constant that must be between 0 and 255.
+            // The callback method gets the result of the request.
+        }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        if (requestCode == AFFDEXME_PERMISSIONS_REQUEST) {
+        if (requestCode == CAMERA_PERMISSIONS_REQUEST) {
             for (int i = 0; i < permissions.length; i++) {
                 String permission = permissions[i];
                 int grantResult = grantResults[i];
@@ -204,16 +247,33 @@ public class MainActivity extends AppCompatActivity
                     cameraPermissionsAvailable = (grantResult == PackageManager.PERMISSION_GRANTED);
                 }
             }
+
+            if (!cameraPermissionsAvailable) {
+                permissionsUnavailableLayout.setVisibility(View.VISIBLE);
+            } else {
+                permissionsUnavailableLayout.setVisibility(View.GONE);
+            }
         }
 
-        if (!cameraPermissionsAvailable) {
-            permissionsUnavailableLayout.setVisibility(View.VISIBLE);
-        } else {
-            permissionsUnavailableLayout.setVisibility(View.GONE);
+        if (requestCode == EXTERNAL_STORAGE_PERMISSIONS_REQUEST) {
+            for (int i = 0; i < permissions.length; i++) {
+                String permission = permissions[i];
+                int grantResult = grantResults[i];
+
+                if (permission.equals(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    storagePermissionsAvailable = (grantResult == PackageManager.PERMISSION_GRANTED);
+                }
+            }
+
+            if (storagePermissionsAvailable) {
+                // resume taking the screenshot
+                takeScreenshot(screenshotButton);
+            }
         }
+
     }
 
-    private void showPermissionExplanationDialog() {
+    private void showPermissionExplanationDialog(int requestCode) {
         final AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
                 getApplicationContext());
 
@@ -221,15 +281,27 @@ public class MainActivity extends AppCompatActivity
         alertDialogBuilder.setTitle(getResources().getString(R.string.insufficient_permissions));
 
         // set dialog message
-        alertDialogBuilder
-                .setMessage(getResources().getString(R.string.permissions_needed_explanation))
-                .setCancelable(false)
-                .setPositiveButton(getResources().getString(R.string.understood), new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                        dialog.cancel();
-                        requestNeededPermissions();
-                    }
-                });
+        if (requestCode == CAMERA_PERMISSIONS_REQUEST) {
+            alertDialogBuilder
+                    .setMessage(getResources().getString(R.string.permissions_camera_needed_explanation))
+                    .setCancelable(false)
+                    .setPositiveButton(getResources().getString(R.string.understood), new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            dialog.cancel();
+                            requestCameraPermissions();
+                        }
+                    });
+        } else if (requestCode == EXTERNAL_STORAGE_PERMISSIONS_REQUEST) {
+            alertDialogBuilder
+                    .setMessage(getResources().getString(R.string.permissions_storage_needed_explanation))
+                    .setCancelable(false)
+                    .setPositiveButton(getResources().getString(R.string.understood), new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            dialog.cancel();
+                            requestStoragePermissions();
+                        }
+                    });
+        }
 
         // create alert dialog
         AlertDialog alertDialog = alertDialogBuilder.create();
@@ -237,7 +309,6 @@ public class MainActivity extends AppCompatActivity
         // show it
         alertDialog.show();
     }
-
 
     /**
      * We check to make sure the device has a front-facing camera.
@@ -283,6 +354,7 @@ public class MainActivity extends AppCompatActivity
         drawingView = (DrawingView) findViewById(R.id.drawing_view);
         settingsButton = (ImageButton) findViewById(R.id.settings_button);
         cameraButton = (ImageButton) findViewById(R.id.camera_button);
+        screenshotButton = (ImageButton) findViewById(R.id.screenshot_button);
         progressBar = (ProgressBar) findViewById(R.id.progress_bar);
         pleaseWaitTextView = (TextView) findViewById(R.id.please_wait_textview);
         Button retryPermissionsButton = (Button) findViewById(R.id.retryPermissionsButton);
@@ -352,7 +424,7 @@ public class MainActivity extends AppCompatActivity
         retryPermissionsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                requestNeededPermissions();
+                requestCameraPermissions();
             }
         });
     }
@@ -378,7 +450,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onResume() {
         super.onResume();
-        checkForDangerousPermissions();
+        checkForCameraPermissions();
         restoreApplicationSettings();
         setMenuVisible(true);
         isMenuShowingForFirstTime = true;
@@ -541,7 +613,6 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-
     @Override
     public void onFaceDetectionStarted() {
         leftMetricsLayout.animate().alpha(1); //make left and right metrics appear
@@ -566,6 +637,8 @@ public class MainActivity extends AppCompatActivity
      */
     @Override
     public void onImageResults(List<Face> faces, Frame image, float timeStamp) {
+        mostRecentFrame = image;
+
         //If the faces object is null, we received an unprocessed frame
         if (faces == null) {
             return;
@@ -601,6 +674,87 @@ public class MainActivity extends AppCompatActivity
             // always update points in multi face mode
             drawingView.updatePoints(faces, mirrorPoints);
         }
+    }
+
+    public void takeScreenshot(View view) {
+        if (mostRecentFrame == null) {
+            Toast.makeText(getApplicationContext(), "No frame detected, aborting screenshot", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!storagePermissionsAvailable) {
+            checkForStoragePermissions();
+            return;
+        }
+
+        Bitmap faceBitmap = ImageHelper.getBitmapFromFrame(mostRecentFrame);
+
+        if (faceBitmap == null) {
+            Log.e(LOG_TAG, "Unable to generate bitmap for frame, aborting screenshot");
+            return;
+        }
+
+        metricViewLayout.setDrawingCacheEnabled(true);
+        Bitmap metricsBitmap = Bitmap.createBitmap(metricViewLayout.getDrawingCache());
+        metricViewLayout.setDrawingCacheEnabled(false);
+
+        drawingView.setDrawingCacheEnabled(true);
+        Bitmap overlayBitmap = Bitmap.createBitmap(drawingView.getDrawingCache());
+        drawingView.setDrawingCacheEnabled(false);
+
+        Bitmap finalScreenshot = Bitmap.createBitmap(faceBitmap.getWidth(), faceBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(finalScreenshot);
+        Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
+
+        canvas.drawBitmap(faceBitmap, 0, 0, paint);
+
+// TODO: This is not quite working right... Tracking dots are not showing up.
+        
+        float scaleFactor = ((float) faceBitmap.getWidth()) / ((float) overlayBitmap.getWidth());
+        int scaledHeight = Math.round(overlayBitmap.getHeight() * scaleFactor);
+        canvas.drawBitmap(overlayBitmap, null, new Rect(0, 0, faceBitmap.getWidth(), scaledHeight), paint);
+
+        scaleFactor = ((float) faceBitmap.getWidth()) / ((float) metricsBitmap.getWidth());
+        scaledHeight = Math.round(metricsBitmap.getHeight() * scaleFactor);
+        canvas.drawBitmap(metricsBitmap, null, new Rect(0, 0, faceBitmap.getWidth(), scaledHeight), paint);
+
+        faceBitmap.recycle();
+        metricsBitmap.recycle();
+        overlayBitmap.recycle();
+
+        Date now = new Date();
+        DateFormat.format("yyyy-MM-dd_hh-mm-ss", now);
+        File pictureFolder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "AffdexMe");
+        if (!pictureFolder.exists()) {
+            if (!pictureFolder.mkdir()) {
+                Log.e(LOG_TAG, "Unable to create directory: " + pictureFolder.getAbsolutePath());
+                return;
+            }
+        }
+        String pictureFileName = now + ".png";
+        File imageFile = new File(pictureFolder, pictureFileName);
+
+        FileOutputStream outputStream = null;
+        try {
+            outputStream = new FileOutputStream(imageFile);
+            finalScreenshot.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+        } catch (FileNotFoundException e) {
+            Log.e(LOG_TAG, "Unable to save screenshot", e);
+        } finally {
+            finalScreenshot.recycle();
+            try {
+                if (outputStream != null) {
+                    outputStream.flush();
+                    outputStream.close();
+                }
+            } catch (IOException e) {
+                Log.e(LOG_TAG, "Unable to save screenshot", e);
+            }
+        }
+
+        String fileSavedMessage = "Screenshot saved to: " + imageFile.getAbsolutePath();
+        Toast.makeText(getApplicationContext(), fileSavedMessage, Toast.LENGTH_SHORT).show();
+        Log.d(LOG_TAG, fileSavedMessage);
     }
 
     /**
@@ -688,6 +842,7 @@ public class MainActivity extends AppCompatActivity
         if (b) {
             settingsButton.setVisibility(View.VISIBLE);
             cameraButton.setVisibility(View.VISIBLE);
+            screenshotButton.setVisibility(View.VISIBLE);
 
             //We display the navigation bar again
             getWindow().getDecorView().setSystemUiVisibility(
@@ -705,6 +860,7 @@ public class MainActivity extends AppCompatActivity
                             | View.SYSTEM_UI_FLAG_FULLSCREEN);
             settingsButton.setVisibility(View.INVISIBLE);
             cameraButton.setVisibility(View.INVISIBLE);
+            screenshotButton.setVisibility(View.INVISIBLE);
         }
     }
 
@@ -809,7 +965,6 @@ public class MainActivity extends AppCompatActivity
         });
 
     }
-
 
     public void camera_button_click(View view) {
         if (cameraType == CameraDetector.CameraType.CAMERA_FRONT) {

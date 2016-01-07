@@ -9,18 +9,25 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.widget.ImageView;
 
+import com.affectiva.android.affdex.sdk.Frame;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public class ImageHelper {
 
@@ -196,5 +203,63 @@ public class ImageHelper {
         ret[1] = top;
 
         return ret;
+    }
+
+    public static Bitmap getBitmapFromFrame(@NonNull Frame frame) {
+        Bitmap bitmap;
+
+        if (frame instanceof Frame.BitmapFrame) {
+            bitmap = ((Frame.BitmapFrame) frame).getBitmap();
+        } else { //frame is ByteArrayFrame
+            switch (frame.getColorFormat()) {
+                case RGBA:
+                    bitmap = getBitmapFromRGBFrame(frame);
+                    break;
+                case YUV_NV21:
+                    bitmap = getBitmapFromYuvFrame(frame);
+                    break;
+                case UNKNOWN_TYPE:
+                default:
+                    Log.e(LOG_TAG, "Unable to get bitmap from unknown frame type");
+                    return null;
+            }
+        }
+
+        if (bitmap == null || frame.getTargetRotation().toDouble() == 0.0) {
+            return bitmap;
+        } else {
+            return rotateBitmap(bitmap, (float) frame.getTargetRotation().toDouble());
+        }
+    }
+
+    public static Bitmap getBitmapFromRGBFrame(@NonNull Frame frame) {
+        byte[] pixels = ((Frame.ByteArrayFrame) frame).getByteArray();
+        Bitmap bitmap = Bitmap.createBitmap(frame.getWidth(), frame.getHeight(), Bitmap.Config.ARGB_8888);
+        bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels));
+        return bitmap;
+    }
+
+    public static Bitmap getBitmapFromYuvFrame(@NonNull Frame frame) {
+        byte[] pixels = ((Frame.ByteArrayFrame) frame).getByteArray();
+        YuvImage yuvImage = new YuvImage(pixels, ImageFormat.NV21, frame.getWidth(), frame.getHeight(), null);
+        return convertYuvImageToBitmap(yuvImage);
+    }
+
+    public static Bitmap convertYuvImageToBitmap(@NonNull YuvImage yuvImage) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        yuvImage.compressToJpeg(new Rect(0, 0, yuvImage.getWidth(), yuvImage.getHeight()), 100, out);
+        byte[] imageBytes = out.toByteArray();
+        try {
+            out.close();
+        } catch (IOException e) {
+            Log.e(LOG_TAG, "Exception while closing output stream", e);
+        }
+        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+    }
+
+    public static Bitmap rotateBitmap(@NonNull Bitmap source, float angle) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(angle);
+        return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
     }
 }
