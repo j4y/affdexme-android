@@ -49,8 +49,6 @@ import com.affectiva.android.affdex.sdk.detector.Detector;
 import com.affectiva.android.affdex.sdk.detector.Face;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -90,9 +88,9 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity
         implements Detector.FaceListener, Detector.ImageListener, CameraDetector.CameraEventListener,
-        View.OnTouchListener, ActivityCompat.OnRequestPermissionsResultCallback {
+        View.OnTouchListener, ActivityCompat.OnRequestPermissionsResultCallback, DrawingView.DrawingThreadEventListener {
 
-    public static final int MAX_SUPPORTED_FACES = 4;
+    public static final int MAX_SUPPORTED_FACES = 3;
     public static final int NUM_METRICS_DISPLAYED = 6;
     private static final String LOG_TAG = "AffdexMe";
     private static final int CAMERA_PERMISSIONS_REQUEST = 42;  //value is arbitrary (between 0 and 255)
@@ -404,6 +402,9 @@ public class MainActivity extends AppCompatActivity
         //Attach event listeners to the menu and edit box
         activityLayout.setOnTouchListener(this);
 
+        //Attach event listerner to drawing view
+        drawingView.setEventListener(this);
+
         /*
          * This app sets the View.SYSTEM_UI_FLAG_HIDE_NAVIGATION flag. Unfortunately, this flag causes
          * Android to steal the first touch event after the navigation bar has been hidden, a touch event
@@ -677,6 +678,15 @@ public class MainActivity extends AppCompatActivity
     }
 
     public void takeScreenshot(View view) {
+        drawingView.requestBitmap();
+
+        /**
+         * A screenshot of the drawing view is generated and processing continues via the callback
+         * onBitmapGenerated() which calls processScreenshot().
+         */
+    }
+
+    private void processScreenshot(Bitmap drawingViewBitmap) {
         if (mostRecentFrame == null) {
             Toast.makeText(getApplicationContext(), "No frame detected, aborting screenshot", Toast.LENGTH_SHORT).show();
             return;
@@ -698,32 +708,25 @@ public class MainActivity extends AppCompatActivity
         Bitmap metricsBitmap = Bitmap.createBitmap(metricViewLayout.getDrawingCache());
         metricViewLayout.setDrawingCacheEnabled(false);
 
-        drawingView.setDrawingCacheEnabled(true);
-        Bitmap overlayBitmap = Bitmap.createBitmap(drawingView.getDrawingCache());
-        drawingView.setDrawingCacheEnabled(false);
-
         Bitmap finalScreenshot = Bitmap.createBitmap(faceBitmap.getWidth(), faceBitmap.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(finalScreenshot);
         Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
 
         canvas.drawBitmap(faceBitmap, 0, 0, paint);
 
-// TODO: This is not quite working right... Tracking dots are not showing up.
-        
-        float scaleFactor = ((float) faceBitmap.getWidth()) / ((float) overlayBitmap.getWidth());
-        int scaledHeight = Math.round(overlayBitmap.getHeight() * scaleFactor);
-        canvas.drawBitmap(overlayBitmap, null, new Rect(0, 0, faceBitmap.getWidth(), scaledHeight), paint);
+        float scaleFactor = ((float) faceBitmap.getWidth()) / ((float) drawingViewBitmap.getWidth());
+        int scaledHeight = Math.round(drawingViewBitmap.getHeight() * scaleFactor);
+        canvas.drawBitmap(drawingViewBitmap, null, new Rect(0, 0, faceBitmap.getWidth(), scaledHeight), paint);
 
         scaleFactor = ((float) faceBitmap.getWidth()) / ((float) metricsBitmap.getWidth());
         scaledHeight = Math.round(metricsBitmap.getHeight() * scaleFactor);
         canvas.drawBitmap(metricsBitmap, null, new Rect(0, 0, faceBitmap.getWidth(), scaledHeight), paint);
 
-        faceBitmap.recycle();
         metricsBitmap.recycle();
-        overlayBitmap.recycle();
+        drawingViewBitmap.recycle();
 
         Date now = new Date();
-        DateFormat.format("yyyy-MM-dd_hh-mm-ss", now);
+        String timestamp = DateFormat.format("yyyy-MM-dd_hh-mm-ss", now).toString();
         File pictureFolder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "AffdexMe");
         if (!pictureFolder.exists()) {
             if (!pictureFolder.mkdir()) {
@@ -731,28 +734,35 @@ public class MainActivity extends AppCompatActivity
                 return;
             }
         }
-        String pictureFileName = now + ".png";
-        File imageFile = new File(pictureFolder, pictureFileName);
 
-        FileOutputStream outputStream = null;
+        String screenshotFileName = timestamp + ".png";
+        File screenshotFile = new File(pictureFolder, screenshotFileName);
+
         try {
-            outputStream = new FileOutputStream(imageFile);
-            finalScreenshot.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
-        } catch (FileNotFoundException e) {
-            Log.e(LOG_TAG, "Unable to save screenshot", e);
-        } finally {
-            finalScreenshot.recycle();
-            try {
-                if (outputStream != null) {
-                    outputStream.flush();
-                    outputStream.close();
-                }
-            } catch (IOException e) {
-                Log.e(LOG_TAG, "Unable to save screenshot", e);
-            }
+            ImageHelper.saveBitmapToFileAsPng(finalScreenshot, screenshotFile);
+        } catch (IOException e) {
+            String msg = "Unable to save screenshot";
+            Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+            Log.e(LOG_TAG, msg, e);
+            return;
         }
+        ImageHelper.addPngToGallery(getApplicationContext(), screenshotFile);
 
-        String fileSavedMessage = "Screenshot saved to: " + imageFile.getAbsolutePath();
+        String rawScreenshotFileName = timestamp + "_raw.png";
+        File rawScreenshotFile = new File(pictureFolder, rawScreenshotFileName);
+
+        try {
+            ImageHelper.saveBitmapToFileAsPng(faceBitmap, rawScreenshotFile);
+        } catch (IOException e) {
+            String msg = "Unable to save screenshot";
+            Log.e(LOG_TAG, msg, e);
+        }
+        ImageHelper.addPngToGallery(getApplicationContext(), rawScreenshotFile);
+
+        faceBitmap.recycle();
+        finalScreenshot.recycle();
+
+        String fileSavedMessage = "Screenshot saved to: " + screenshotFile.getPath();
         Toast.makeText(getApplicationContext(), fileSavedMessage, Toast.LENGTH_SHORT).show();
         Log.d(LOG_TAG, fileSavedMessage);
     }
@@ -991,6 +1001,14 @@ public class MainActivity extends AppCompatActivity
             Log.e(LOG_TAG, e.getMessage());
         }
     }
+
+    @Override
+    public void onBitmapGenerated(@NonNull final Bitmap bitmap) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                processScreenshot(bitmap);
+            }
+        });
+    }
 }
-
-

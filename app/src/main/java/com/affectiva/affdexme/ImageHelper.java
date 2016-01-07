@@ -5,6 +5,7 @@
 
 package com.affectiva.affdexme;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -14,6 +15,7 @@ import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.graphics.drawable.Drawable;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -37,7 +39,7 @@ public class ImageHelper {
     private ImageHelper() {
     }
 
-    public static boolean checkIfImageFileExists(@NonNull Context context, @NonNull String fileName) {
+    public static boolean checkIfImageFileExists(@NonNull final Context context, @NonNull final String fileName) {
 
         // path to /data/data/yourapp/app_data/images
         File directory = context.getDir("images", Context.MODE_PRIVATE);
@@ -48,7 +50,7 @@ public class ImageHelper {
         return imagePath.exists();
     }
 
-    public static boolean deleteImageFile(@NonNull Context context, @NonNull String fileName) {
+    public static boolean deleteImageFile(@NonNull final Context context, @NonNull final String fileName) {
         // path to /data/data/yourapp/app_data/images
         File directory = context.getDir("images", Context.MODE_PRIVATE);
 
@@ -58,7 +60,7 @@ public class ImageHelper {
         return imagePath.delete();
     }
 
-    public static void resizeAndSaveResourceImageToInternalStorage(@NonNull Context context, @NonNull String fileName, @NonNull String resourceName) throws FileNotFoundException {
+    public static void resizeAndSaveResourceImageToInternalStorage(@NonNull final Context context, @NonNull final String fileName, @NonNull final String resourceName) throws FileNotFoundException {
         final int resourceId = context.getResources().getIdentifier(resourceName, "drawable", context.getPackageName());
 
         if (resourceId == 0) {
@@ -68,7 +70,7 @@ public class ImageHelper {
         resizeAndSaveResourceImageToInternalStorage(context, fileName, resourceId);
     }
 
-    public static void resizeAndSaveResourceImageToInternalStorage(@NonNull Context context, @NonNull String fileName, int resourceId) {
+    public static void resizeAndSaveResourceImageToInternalStorage(@NonNull final Context context, @NonNull final String fileName, final int resourceId) {
         Resources resources = context.getResources();
         Bitmap sourceBitmap = BitmapFactory.decodeResource(resources, resourceId);
         Bitmap resizedBitmap = resizeBitmapForDeviceDensity(context, sourceBitmap);
@@ -77,7 +79,7 @@ public class ImageHelper {
         resizedBitmap.recycle();
     }
 
-    public static Bitmap resizeBitmapForDeviceDensity(@NonNull Context context, @NonNull Bitmap sourceBitmap) {
+    public static Bitmap resizeBitmapForDeviceDensity(@NonNull final Context context, @NonNull final Bitmap sourceBitmap) {
         DisplayMetrics metrics = context.getResources().getDisplayMetrics();
 
         int targetWidth = Math.round(sourceBitmap.getWidth() * metrics.density);
@@ -86,7 +88,7 @@ public class ImageHelper {
         return Bitmap.createScaledBitmap(sourceBitmap, targetWidth, targetHeight, false);
     }
 
-    public static void saveBitmapToInternalStorage(@NonNull Context context, @NonNull Bitmap bitmapImage, @NonNull String fileName) {
+    public static void saveBitmapToInternalStorage(@NonNull final Context context, @NonNull final Bitmap bitmapImage, @NonNull final String fileName) {
 
         // path to /data/data/yourapp/app_data/images
         File directory = context.getDir("images", Context.MODE_PRIVATE);
@@ -116,7 +118,7 @@ public class ImageHelper {
         }
     }
 
-    public static Bitmap loadBitmapFromInternalStorage(@NonNull Context applicationContext, @NonNull String fileName) {
+    public static Bitmap loadBitmapFromInternalStorage(@NonNull final Context applicationContext, @NonNull final String fileName) {
 
         // path to /data/data/yourapp/app_data/images
         File directory = applicationContext.getDir("images", Context.MODE_PRIVATE);
@@ -132,7 +134,7 @@ public class ImageHelper {
         }
     }
 
-    public static void preproccessImageIfNecessary(Context context, String fileName, String resourceName) {
+    public static void preproccessImageIfNecessary(@NonNull final Context context, @NonNull final String fileName, @NonNull final String resourceName) {
         // Set this to true to force the app to always load the images for debugging purposes
         final boolean DEBUG = false;
 
@@ -164,10 +166,10 @@ public class ImageHelper {
      * @param imageView source ImageView
      * @return 0: left, 1: top, 2: width, 3: height
      */
-    public static int[] getBitmapPositionInsideImageView(ImageView imageView) {
+    public static int[] getBitmapPositionInsideImageView(@NonNull final ImageView imageView) {
         int[] ret = new int[4];
 
-        if (imageView == null || imageView.getDrawable() == null)
+        if (imageView.getDrawable() == null)
             return ret;
 
         // Get image dimensions
@@ -205,7 +207,18 @@ public class ImageHelper {
         return ret;
     }
 
-    public static Bitmap getBitmapFromFrame(@NonNull Frame frame) {
+    /**
+     * This is a HACK.
+     * We need to update the Android SDK to make this process cleaner.
+     * We should just be able to call frame.getBitmap() and have it return a bitmap no matter what type
+     * of frame it is.  If any conversion between file types needs to take place, it needs to happen
+     * inside the SDK layer and put the onus on the developer to know how to convert between YUV and ARGB.
+     * TODO: See above
+     *
+     * @param frame - The Frame containing the desired image
+     * @return - The Bitmap representation of the image
+     */
+    public static Bitmap getBitmapFromFrame(@NonNull final Frame frame) {
         Bitmap bitmap;
 
         if (frame instanceof Frame.BitmapFrame) {
@@ -232,20 +245,26 @@ public class ImageHelper {
         }
     }
 
-    public static Bitmap getBitmapFromRGBFrame(@NonNull Frame frame) {
+    public static Bitmap getBitmapFromRGBFrame(@NonNull final Frame frame) {
         byte[] pixels = ((Frame.ByteArrayFrame) frame).getByteArray();
         Bitmap bitmap = Bitmap.createBitmap(frame.getWidth(), frame.getHeight(), Bitmap.Config.ARGB_8888);
         bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels));
         return bitmap;
     }
 
-    public static Bitmap getBitmapFromYuvFrame(@NonNull Frame frame) {
+    public static Bitmap getBitmapFromYuvFrame(@NonNull final Frame frame) {
         byte[] pixels = ((Frame.ByteArrayFrame) frame).getByteArray();
         YuvImage yuvImage = new YuvImage(pixels, ImageFormat.NV21, frame.getWidth(), frame.getHeight(), null);
         return convertYuvImageToBitmap(yuvImage);
     }
 
-    public static Bitmap convertYuvImageToBitmap(@NonNull YuvImage yuvImage) {
+    /**
+     * Note: This conversion procedure is sloppy and may result in JPEG compression artifacts
+     *
+     * @param yuvImage - The YuvImage to convert
+     * @return - The converted Bitmap
+     */
+    public static Bitmap convertYuvImageToBitmap(@NonNull final YuvImage yuvImage) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         yuvImage.compressToJpeg(new Rect(0, 0, yuvImage.getWidth(), yuvImage.getHeight()), 100, out);
         byte[] imageBytes = out.toByteArray();
@@ -257,9 +276,31 @@ public class ImageHelper {
         return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
     }
 
-    public static Bitmap rotateBitmap(@NonNull Bitmap source, float angle) {
+    public static Bitmap rotateBitmap(@NonNull final Bitmap source, final float angle) {
         Matrix matrix = new Matrix();
         matrix.postRotate(angle);
         return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
+    }
+
+    public static void saveBitmapToFileAsPng(@NonNull final Bitmap bitmap, @NonNull final File file) throws IOException {
+        try {
+            FileOutputStream outputStream = new FileOutputStream(file);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+            bitmap.recycle();
+            outputStream.flush();
+            outputStream.close();
+        } catch (IOException e) {
+            throw new FileNotFoundException("Unable to save bitmap to file: " + file.getPath() + "\n" + e.getLocalizedMessage());
+        }
+    }
+
+    public static void addPngToGallery(@NonNull final Context context, @NonNull final File imageFile) {
+        ContentValues values = new ContentValues();
+
+        values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+        values.put(MediaStore.MediaColumns.DATA, imageFile.getAbsolutePath());
+
+        context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
     }
 }
