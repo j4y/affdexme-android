@@ -7,6 +7,8 @@ package com.affectiva.affdexme;
 
 import com.affectiva.android.affdex.sdk.detector.Face;
 
+import java.util.Locale;
+
 /**
  * A class containing:
  * -enumerations representing the Emotion and Expressions featured in the Affectiva SDK.
@@ -35,6 +37,8 @@ public class MetricsManager {
     static String getUpperCaseName(Metrics metric) {
         if (metric == Expressions.LIP_CORNER_DEPRESSOR) {
             return "FROWN";
+        } else if (metric.getType().equals(MetricType.Emoji)) {
+            return ((Emojis) metric).getDisplayName().toUpperCase(Locale.US);
         } else {
             return metric.toString().replace("_", " ");
         }
@@ -43,6 +47,9 @@ public class MetricsManager {
     //Used for MetricSelectionFragment
     //This method is optimized for strings of the form SOME_METRIC_NAME, which all metric names currently are
     static String getCapitalizedName(Metrics metric) {
+        if (metric.getType().equals(MetricType.Emoji)) {
+            return ((Emojis) metric).getDisplayName();
+        }
         if (metric == Expressions.LIP_CORNER_DEPRESSOR) {
             return "Frown";
         }
@@ -138,22 +145,38 @@ public class MetricsManager {
     }
 
     public enum Emojis implements Metrics {
-        RELAXED,
-        SMILEY,
-        LAUGHING,
-        KISSING,
-        DISAPPOINTED,
-        RAGE,
-        SMIRK,
-        WINK,
-        STUCK_OUT_TONGUE_WINKING_EYE,
-        STUCK_OUT_TONGUE,
-        FLUSHED,
-        SCREAM;
+        RELAXED("Relaxed"),
+        SMILEY("Smiley"),
+        LAUGHING("Laughing"),
+        KISSING("Kiss"),
+        DISAPPOINTED("Disappointed"),
+        RAGE("Rage"),
+        SMIRK("Smirk Emoji"),
+        WINK("Wink"),
+        STUCK_OUT_TONGUE_WINKING_EYE("Tongue Wink"),
+        STUCK_OUT_TONGUE("Tongue Out"),
+        FLUSHED("Flushed"),
+        SCREAM("Scream");
+
+        private String displayName;
+
+        Emojis(String name) {
+            displayName = name;
+        }
+
+        public static Emojis getEnum(String value) {
+            for (Emojis v : values())
+                if (v.displayName.equalsIgnoreCase(value)) return v;
+            throw new IllegalArgumentException();
+        }
 
         @Override
         public MetricType getType() {
             return MetricType.Emoji;
+        }
+
+        public String getDisplayName() {
+            return displayName;
         }
 
         public String getUnicodeForEmoji() {

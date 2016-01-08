@@ -303,14 +303,6 @@ public class MetricSelectionFragment extends Fragment implements View.OnClickLis
         }
         metricSelector.setIsSelected(isSelected);
 
-        //Create and display message at the top
-        /*String dMetricsChosen;
-        if (numberOfSelectedItems == 1) {
-            dMetricsChosen = "1 metric chosen.";
-        } else {
-            dMetricsChosen = String.format("%d metrics chosen.",numberOfSelectedItems);
-        }*/
-
         if (numberOfSelectedItems == 1) {
             metricChooserTextView.setText("1 metric chosen.");
         } else {
@@ -322,20 +314,6 @@ public class MetricSelectionFragment extends Fragment implements View.OnClickLis
         } else {
             metricChooserTextView.setTextColor(messageOverLimitColor);
         }
-
-
-
-        /*if (numberOfSelectedItems < NUM_METRICS_DISPLAYED) {
-            metricChooserTextView.setTextColor(messageAtOrUnderLimitColor);
-            metricChooserTextView.setText(String.format("%s Choose %d more.", dMetricsChosen, NUM_METRICS_DISPLAYED - numberOfSelectedItems));
-        } else if (numberOfSelectedItems == NUM_METRICS_DISPLAYED) {
-            metricChooserTextView.setTextColor(messageAtOrUnderLimitColor);
-            metricChooserTextView.setText(dMetricsChosen);
-        } else {
-            metricChooserTextView.setTextColor(messageOverLimitColor);
-            metricChooserTextView.setText(String.format("%s Please de-select %d.", dMetricsChosen, numberOfSelectedItems - NUM_METRICS_DISPLAYED));
-        }*/
-
     }
 
     void clearItems() {

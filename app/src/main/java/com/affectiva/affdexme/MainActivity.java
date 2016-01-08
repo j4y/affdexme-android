@@ -533,7 +533,8 @@ public class MainActivity extends AppCompatActivity
                     break;
                 case Emoji:
                     detector.setDetectAllEmojis(true);
-                    String metricTitle = MetricsManager.getUpperCaseName(metric) + " " + ((MetricsManager.Emojis) metric).getUnicodeForEmoji();
+                    MetricsManager.Emojis emoji = ((MetricsManager.Emojis) metric);
+                    String metricTitle = emoji.getDisplayName(); // + " " + emoji.getUnicodeForEmoji();
                     metricNames[index].setText(metricTitle);
                     Log.d(LOG_TAG, "Getter Method: " + "get" + MetricsManager.getCamelCase(metric));
                     getFaceScoreMethod = Face.Emojis.class.getMethod("get" + MetricsManager.getCamelCase(metric));

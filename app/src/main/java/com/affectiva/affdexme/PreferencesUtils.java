@@ -57,7 +57,12 @@ public class PreferencesUtils {
     }
 
     public static void saveMetricToPrefs(SharedPreferences.Editor editor, int index, MetricsManager.Metrics metric) {
-        editor.putString(String.format("metric_display_%d", index), metric.toString());
+        if (metric.getType().equals(MetricsManager.MetricType.Emoji)) {
+            MetricsManager.Emojis emoji = (MetricsManager.Emojis) metric;
+            editor.putString(String.format("metric_display_%d", index), emoji.getDisplayName());
+        } else {
+            editor.putString(String.format("metric_display_%d", index), metric.toString());
+        }
     }
 
     static private MetricsManager.Metrics defaultMetric(int index) {
@@ -99,7 +104,7 @@ public class PreferencesUtils {
         }
         try {
             MetricsManager.Emojis emoji;
-            emoji = MetricsManager.Emojis.valueOf(metricString);
+            emoji = MetricsManager.Emojis.getEnum(metricString);
             return emoji;
         } catch (IllegalArgumentException expressionParseFailed) {
             Log.v(LOG_TAG, "Not an Emoji...");
