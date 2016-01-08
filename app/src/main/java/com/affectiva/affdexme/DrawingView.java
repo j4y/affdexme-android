@@ -711,8 +711,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         private int drawThickness = 0;
         private boolean isDrawPointsEnabled = true; //by default, have the drawing thread draw tracking dots
         private boolean isDimensionsNeeded = true;
-        private boolean isDrawAppearanceMarkersEnabled = true; //by default, do draw the gender and glasses markers
-        private boolean isAlwaysShowDominantMarkersEnabled = false; //by default, do not draw dominant emoji
+        private boolean isDrawAppearanceMarkersEnabled = true; //by default, draw the gender and glasses markers
+        private boolean isAlwaysShowDominantMarkersEnabled = true; //by default, draw the dominant emotion and emoji
 
         private Paint dominantEmotionLabelPaint;
         private Paint dominantEmotionMetricBarPaint;
