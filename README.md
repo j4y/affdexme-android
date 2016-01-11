@@ -20,3 +20,7 @@ In order to use this project, you will need to:
 - Run the app and smile!
 
 See the comment section at the top of the MainActivity.java file for more information.
+
+***
+
+This app uses some of the excellent [Emoji One emojis](http://emojione.com).
