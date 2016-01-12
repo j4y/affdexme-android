@@ -500,16 +500,32 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 drawBoundingBox(c, face, boundingRect);
             }
 
+            float heightOffset = findNecessaryHeightOffset(boundingRect, face);
+
             //Draw the Appearance markers (gender / glasses)
             if (config.isDrawAppearanceMarkersEnabled) {
-                drawAppearanceMarkers(c, face, boundingRect);
+                drawAppearanceMarkers(c, face, boundingRect, heightOffset);
             }
 
             //Only draw the emotion or emoji on the bounding box if we are in multiface mode, or the setting is set to always show the dominant metrics.
             if (isMultiFaceMode || config.isAlwaysShowDominantMarkersEnabled) {
-                drawDominantEmoji(c, face, boundingRect);
+                drawDominantEmoji(c, face, boundingRect, heightOffset);
                 drawDominantEmotion(c, face, boundingRect);
             }
+        }
+
+        private float findNecessaryHeightOffset(Rect boundingBox, Face face) {
+            Bitmap appearanceBitmap = getAppearanceBitmapForFace(face);
+            Bitmap emojiBitmap = getDominantEmojiBitmapForFace(face);
+
+            float appearanceBitmapHeight = (appearanceBitmap != null) ? appearanceBitmap.getHeight() : 0;
+            float emojiBitmapHeight = (emojiBitmap != null) ? emojiBitmap.getHeight() : 0;
+            float spacingBetween = (appearanceBitmapHeight > 0 && emojiBitmapHeight > 0) ? MARGIN : 0;
+            float totalHeightRequired = appearanceBitmapHeight + emojiBitmapHeight + spacingBetween;
+
+            float bitmapHeightOverflow = Math.max(totalHeightRequired - boundingBox.height(), 0);
+
+            return bitmapHeightOverflow / 2;  // distribute the overflow evenly on both sides of the bounding box
         }
 
         private void drawBoundingBox(Canvas c, Face f, Rect boundingBox) {
@@ -521,7 +537,14 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                     boundingBoxPaint);
         }
 
-        private void drawAppearanceMarkers(Canvas c, Face f, Rect boundingBox) {
+        private void drawAppearanceMarkers(Canvas c, Face f, Rect boundingBox, float offset) {
+            Bitmap bitmap = getAppearanceBitmapForFace(f);
+            if (bitmap != null) {
+                drawBitmapIfNotRecycled(c, bitmap, boundingBox.right + MARGIN, boundingBox.bottom - bitmap.getHeight() + offset);
+            }
+        }
+
+        private Bitmap getAppearanceBitmapForFace(Face f) {
             Bitmap bitmap = null;
             switch (f.appearance.getGender()) {
                 case MALE:
@@ -548,9 +571,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 default:
                     Log.e(LOG_TAG, "Unknown gender: " + f.appearance.getGender());
             }
-            if (bitmap != null) {
-                drawBitmapIfNotRecycled(c, bitmap, boundingBox.right + MARGIN, boundingBox.bottom - bitmap.getHeight());
-            }
+            return bitmap;
         }
 
         private void drawBitmapIfNotRecycled(Canvas c, Bitmap b, float posX, float posY) {
@@ -559,8 +580,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             }
         }
 
-        private void drawDominantEmoji(Canvas c, Face f, Rect boundingBox) {
-            drawEmojiFromCache(c, f.emojis.getDominantEmoji().name(), boundingBox.right + MARGIN, boundingBox.top);
+        private void drawDominantEmoji(Canvas c, Face f, Rect boundingBox, float offset) {
+            drawEmojiFromCache(c, f.emojis.getDominantEmoji().name(), boundingBox.right + MARGIN, boundingBox.top - offset);
         }
 
         private void drawDominantEmotion(Canvas c, Face f, Rect boundingBox) {
@@ -637,11 +658,6 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         void drawEmojiFromCache(Canvas c, String emojiName, float markerPosX, float markerPosY) {
-            // Nothing to draw if emoji is unknown
-            if (emojiName.equals(Face.EMOJI.UNKNOWN.name())) {
-                return;
-            }
-
             Bitmap emojiBitmap;
 
             try {
@@ -651,10 +667,26 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 return;
             }
 
-            c.drawBitmap(emojiBitmap, markerPosX, markerPosY, null);
+            if (emojiBitmap != null) {
+                c.drawBitmap(emojiBitmap, markerPosX, markerPosY, null);
+            }
+        }
+
+        private Bitmap getDominantEmojiBitmapForFace(Face f) {
+            try {
+                return getEmojiBitmapByName(f.emojis.getDominantEmoji().name());
+            } catch (FileNotFoundException e) {
+                Log.e(LOG_TAG, "Dominant emoji bitmap not available", e);
+                return null;
+            }
         }
 
         Bitmap getEmojiBitmapByName(String emojiName) throws FileNotFoundException {
+            // No bitmap necessary if emoji is unknown
+            if (emojiName.equals(Face.EMOJI.UNKNOWN.name())) {
+                return null;
+            }
+
             String emojiResourceName = emojiName.trim().replace(' ', '_').toLowerCase(Locale.US).concat("_emoji");
             String emojiFileName = emojiResourceName + ".png";
 
