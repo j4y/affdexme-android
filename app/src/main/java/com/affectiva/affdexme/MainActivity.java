@@ -128,6 +128,7 @@ public class MainActivity extends AppCompatActivity
     private long timeToUpdate = 0;
     private boolean isFrontFacingCameraDetected = true;
     private boolean isBackFacingCameraDetected = true;
+    private boolean multiFaceModeEnabled = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -325,14 +326,17 @@ public class MainActivity extends AppCompatActivity
             notFoundTextView.setVisibility(View.VISIBLE);
         }
 
-        //TODO: change this to be taken from settings
-        if (isBackFacingCameraDetected) {
-            cameraType = CameraDetector.CameraType.CAMERA_BACK;
-            mirrorPoints = false;
-        }
-        if (isFrontFacingCameraDetected) {
+        //set default camera settings
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        //restore the camera type settings
+        String cameraTypeName = sharedPreferences.getString("cameraType", CameraDetector.CameraType.CAMERA_FRONT.name());
+        if (cameraTypeName.equals(CameraDetector.CameraType.CAMERA_FRONT.name())) {
             cameraType = CameraDetector.CameraType.CAMERA_FRONT;
             mirrorPoints = true;
+        } else {
+            cameraType = CameraDetector.CameraType.CAMERA_BACK;
+            mirrorPoints = false;
         }
     }
 
@@ -435,8 +439,7 @@ public class MainActivity extends AppCompatActivity
          * the camera. If a SurfaceView is passed in as the last argument to the constructor,
          * that view will be painted with what the camera sees.
          */
-
-        detector = new CameraDetector(this, CameraDetector.CameraType.CAMERA_FRONT, cameraView, MAX_SUPPORTED_FACES, Detector.FaceDetectorMode.LARGE_FACES);
+        detector = new CameraDetector(this, cameraType, cameraView, (multiFaceModeEnabled ? MAX_SUPPORTED_FACES : 1), Detector.FaceDetectorMode.LARGE_FACES);
 
         // update the license path here if you name your file something else
         detector.setLicensePath("license.txt");
@@ -457,11 +460,37 @@ public class MainActivity extends AppCompatActivity
         isMenuShowingForFirstTime = true;
     }
 
+    private void setMultiFaceModeEnabled(boolean isEnabled) {
+
+        //if setting change is necessary
+        if (isEnabled != multiFaceModeEnabled) {
+            // change the setting, stop the detector, and reinitialize it to change the setting
+            multiFaceModeEnabled = isEnabled;
+            stopDetector();
+            initializeCameraDetector();
+        }
+    }
+
     /*
      * We use the Shared Preferences object to restore application settings.
      */
     public void restoreApplicationSettings() {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        //restore the camera type settings
+        String cameraTypeName = sharedPreferences.getString("cameraType", CameraDetector.CameraType.CAMERA_FRONT.name());
+        if (cameraTypeName.equals(CameraDetector.CameraType.CAMERA_FRONT.name())) {
+            setCameraType(CameraDetector.CameraType.CAMERA_FRONT);
+        } else {
+            setCameraType(CameraDetector.CameraType.CAMERA_BACK);
+        }
+
+        //restore the multiface mode setting to reset the detector if necessary
+        if (sharedPreferences.getBoolean("multiface", false)) { // default to false
+            setMultiFaceModeEnabled(true);
+        } else {
+            setMultiFaceModeEnabled(false);
+        }
 
         //restore camera processing rate
         int detectorProcessRate = PreferencesUtils.getFrameProcessingRate(sharedPreferences);
@@ -488,7 +517,7 @@ public class MainActivity extends AppCompatActivity
             setShowAppearance(false);
         }
 
-        if (sharedPreferences.getBoolean("showDominant", drawingView.getAlwaysShowDominantMarkersEnabled())) {
+        if (sharedPreferences.getBoolean("emoji", drawingView.getDrawEmojiMarkersEnabled())) {
             detector.setDetectAllEmojis(true);
             setShowEmoji(true);
         } else {
@@ -499,6 +528,11 @@ public class MainActivity extends AppCompatActivity
         //populate metric displays
         for (int n = 0; n < NUM_METRICS_DISPLAYED; n++) {
             activateMetric(n, PreferencesUtils.getMetricFromPrefs(sharedPreferences, n));
+        }
+
+        //if we are in multiface mode, we need to enable the detection of all emotions
+        if (multiFaceModeEnabled) {
+            detector.setDetectAllEmotions(true);
         }
     }
 
@@ -580,7 +614,7 @@ public class MainActivity extends AppCompatActivity
     void mainWindowResumedTasks() {
 
         //Notify the user that they can't use the app without authorizing these permissions.
-        if (!cameraPermissionsAvailable) { // || !storagePermissionsAvailable) {
+        if (!cameraPermissionsAvailable) {
             permissionsUnavailableLayout.setVisibility(View.VISIBLE);
             return;
         }
@@ -665,7 +699,7 @@ public class MainActivity extends AppCompatActivity
              * to our drawing thread and also inform the thread what the valence score was, as that will determine the color
              * of the bounding box.
              */
-            if (drawingView.getDrawPointsEnabled() || drawingView.getDrawAppearanceMarkersEnabled() || drawingView.getAlwaysShowDominantMarkersEnabled()) {
+            if (drawingView.getDrawPointsEnabled() || drawingView.getDrawAppearanceMarkersEnabled() || drawingView.getDrawEmojiMarkersEnabled()) {
                 drawingView.updatePoints(faces, mirrorPoints);
             }
 
@@ -898,7 +932,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     void setShowEmoji(boolean b) {
-        drawingView.getAlwaysShowDominantMarkersEnabled(b);
+        drawingView.setDrawEmojiMarkersEnabled(b);
     }
 
 
@@ -978,28 +1012,43 @@ public class MainActivity extends AppCompatActivity
     }
 
     public void camera_button_click(View view) {
-        if (cameraType == CameraDetector.CameraType.CAMERA_FRONT) {
-            if (isBackFacingCameraDetected) {
-                cameraType = CameraDetector.CameraType.CAMERA_BACK;
-                mirrorPoints = false;
-            } else {
-                Toast.makeText(this, "No back-facing camera found", Toast.LENGTH_LONG).show();
-            }
-        } else if (cameraType == CameraDetector.CameraType.CAMERA_BACK) {
-            if (isFrontFacingCameraDetected) {
-                cameraType = CameraDetector.CameraType.CAMERA_FRONT;
-                mirrorPoints = true;
-            } else {
-                Toast.makeText(this, "No front-facing camera found", Toast.LENGTH_LONG).show();
-            }
-        }
+        //Toggle the camera setting
+        setCameraType(cameraType == CameraDetector.CameraType.CAMERA_FRONT ? CameraDetector.CameraType.CAMERA_BACK : CameraDetector.CameraType.CAMERA_FRONT);
+    }
 
-        performFaceDetectionStoppedTasks();
+    private void setCameraType(CameraDetector.CameraType type) {
+        SharedPreferences.Editor preferencesEditor = PreferenceManager.getDefaultSharedPreferences(this).edit();
 
-        try {
+        //If a settings change is necessary
+        if (cameraType != type) {
+            switch (type) {
+                case CAMERA_BACK:
+                    if (isBackFacingCameraDetected) {
+                        cameraType = CameraDetector.CameraType.CAMERA_BACK;
+                        mirrorPoints = false;
+                    } else {
+                        Toast.makeText(this, "No back-facing camera found", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    break;
+                case CAMERA_FRONT:
+                    if (isFrontFacingCameraDetected) {
+                        cameraType = CameraDetector.CameraType.CAMERA_FRONT;
+                        mirrorPoints = true;
+                    } else {
+                        Toast.makeText(this, "No front-facing camera found", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    break;
+                default:
+                    Log.e(LOG_TAG, "Unknown camera type selected");
+            }
+
+            performFaceDetectionStoppedTasks();
+
             detector.setCameraType(cameraType);
-        } catch (Exception e) {
-            Log.e(LOG_TAG, e.getMessage());
+            preferencesEditor.putString("cameraType", cameraType.name());
+            preferencesEditor.apply();
         }
     }
 

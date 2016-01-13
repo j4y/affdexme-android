@@ -239,12 +239,12 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         drawingViewConfig.isDrawAppearanceMarkersEnabled = b;
     }
 
-    public boolean getAlwaysShowDominantMarkersEnabled() {
-        return drawingViewConfig.isAlwaysShowDominantMarkersEnabled;
+    public boolean getDrawEmojiMarkersEnabled() {
+        return drawingViewConfig.isDrawEmojiMarkersEnabled;
     }
 
-    public void getAlwaysShowDominantMarkersEnabled(boolean b) {
-        drawingViewConfig.isAlwaysShowDominantMarkersEnabled = b;
+    public void setDrawEmojiMarkersEnabled(boolean b) {
+        drawingViewConfig.isDrawEmojiMarkersEnabled = b;
     }
 
     public void updatePoints(List<Face> faces, boolean isPointsMirrored) {
@@ -507,9 +507,13 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 drawAppearanceMarkers(c, face, boundingRect, heightOffset);
             }
 
-            //Only draw the emotion or emoji on the bounding box if we are in multiface mode, or the setting is set to always show the dominant metrics.
-            if (isMultiFaceMode || config.isAlwaysShowDominantMarkersEnabled) {
+            //Draw the Emoji markers
+            if (config.isDrawEmojiMarkersEnabled) {
                 drawDominantEmoji(c, face, boundingRect, heightOffset);
+            }
+
+            //Only draw the dominant emotion bar in multiface mode
+            if (isMultiFaceMode) {
                 drawDominantEmotion(c, face, boundingRect);
             }
         }
@@ -629,10 +633,6 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 dominantMetricName = MetricsManager.getCapitalizedName(MetricsManager.Emotions.DISGUST);
                 dominantMetricValue = f.emotions.getDisgust();
             }
-            if (f.emotions.getEngagement() > dominantMetricValue) {
-                dominantMetricName = MetricsManager.getCapitalizedName(MetricsManager.Emotions.ENGAGEMENT);
-                dominantMetricValue = f.emotions.getEngagement();
-            }
             if (f.emotions.getFear() > dominantMetricValue) {
                 dominantMetricName = MetricsManager.getCapitalizedName(MetricsManager.Emotions.FEAR);
                 dominantMetricValue = f.emotions.getFear();
@@ -649,6 +649,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 dominantMetricName = MetricsManager.getCapitalizedName(MetricsManager.Emotions.SURPRISE);
                 dominantMetricValue = f.emotions.getSurprise();
             }
+            // Ignore VALENCE and ENGAGEMENT
 
             if (dominantMetricName.isEmpty()) {
                 return null;
@@ -743,8 +744,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         private int drawThickness = 0;
         private boolean isDrawPointsEnabled = true; //by default, have the drawing thread draw tracking dots
         private boolean isDimensionsNeeded = true;
-        private boolean isDrawAppearanceMarkersEnabled = true; //by default, draw the gender and glasses markers
-        private boolean isAlwaysShowDominantMarkersEnabled = true; //by default, draw the dominant emotion and emoji
+        private boolean isDrawAppearanceMarkersEnabled = true; //by default, draw the appearance markers
+        private boolean isDrawEmojiMarkersEnabled = true; //by default, draw the dominant emoji markers
 
         private Paint dominantEmotionLabelPaint;
         private Paint dominantEmotionMetricBarPaint;

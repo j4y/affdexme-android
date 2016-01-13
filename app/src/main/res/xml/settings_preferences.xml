@@ -11,16 +11,6 @@
         android:key="fps"
         android:summary="@string/show_fps_message"
         android:title="@string/show_fps_title" />
-    <CheckBoxPreference
-        android:defaultValue="true"
-        android:key="track"
-        android:summary="@string/show_tracking_message"
-        android:title="@string/show_tracking_title" />
-    <CheckBoxPreference
-        android:defaultValue="true"
-        android:key="appearance"
-        android:summary="@string/show_appearance_message"
-        android:title="@string/show_appearance_title" />
     <EditTextPreference
         android:defaultValue="20"
         android:dialogTitle="@string/fps_edittext_title"
@@ -31,8 +21,24 @@
         android:summary="@string/set_fps_message"
         android:title="@string/set_fps_title" />
     <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="track"
+        android:summary="@string/show_tracking_message"
+        android:title="@string/show_tracking_title" />
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="appearance"
+        android:summary="@string/show_appearance_message"
+        android:title="@string/show_appearance_title" />
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="emoji"
+        android:summary="@string/show_emoji_message"
+        android:title="@string/show_emoji_title" />
+    <CheckBoxPreference
         android:defaultValue="false"
-        android:key="showDominant"
-        android:summary="@string/show_dominant_message"
-        android:title="@string/show_dominant_title" />
+        android:key="multiface"
+        android:summary="@string/show_multiface_message"
+        android:title="@string/show_multiface_title" />
+
 </PreferenceScreen>

@@ -41,8 +41,10 @@
     <string name="show_appearance_message">Display appearance markers adjacent to the bounding box.</string>
     <string name="show_fps_title">Show FPS</string>
     <string name="show_fps_message">Display the actual processed frames per second.</string>
-    <string name="show_dominant_title">Always show dominant metrics</string>
-    <string name="show_dominant_message">When this is on, the dominant emoji and emotion will always be displayed adjacent to the detected face.</string>
+    <string name="show_emoji_title">Show Emoji Indicators</string>
+    <string name="show_emoji_message">Display emoji markers adjacent to the bounding box.</string>
+    <string name="show_multiface_message">Track multiple people. A beta feature that is CPU intensive, and works only on newer devices.</string>
+    <string name="show_multiface_title">Enable Multi-face mode</string>
     <string name="negative">NEGATIVE</string>
     <string name="positive">POSITIVE</string>
 </resources>
