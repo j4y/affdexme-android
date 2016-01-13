@@ -221,8 +221,10 @@ public class MetricSelectionFragment extends Fragment implements View.OnClickLis
         addGridItems(currentRow, numColumns, inflater, res, columnWidth, MetricsManager.Emotions.values());
         addHeader("Expressions", currentRow, numColumns, inflater);
         addGridItems(currentRow, numColumns, inflater, res, columnWidth, MetricsManager.Expressions.values());
-        addHeader("Emoji", currentRow, numColumns, inflater);
-        addGridItems(currentRow, numColumns, inflater, res, columnWidth, MetricsManager.Emojis.values());
+
+        // If you wanted to add Emoji as selectable metrics, you would uncomment the two lines below
+//        addHeader("Emoji", currentRow, numColumns, inflater);
+//        addGridItems(currentRow, numColumns, inflater, res, columnWidth, MetricsManager.Emojis.values());
 
         gridLayout.setColumnCount(numColumns);
         gridLayout.setRowCount(currentRow.value);
