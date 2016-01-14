@@ -91,6 +91,7 @@ public class MainActivity extends AppCompatActivity
         View.OnTouchListener, ActivityCompat.OnRequestPermissionsResultCallback, DrawingView.DrawingThreadEventListener {
 
     public static final int MAX_SUPPORTED_FACES = 3;
+    public static final boolean STORE_RAW_SCREENSHOTS = false; // setting to enable saving the raw images when taking screenshots
     public static final int NUM_METRICS_DISPLAYED = 6;
     private static final String LOG_TAG = "AffdexMe";
     private static final int CAMERA_PERMISSIONS_REQUEST = 42;  //value is arbitrary (between 0 and 255)
@@ -206,6 +207,8 @@ public class MainActivity extends AppCompatActivity
                 // No explanation needed, we can request the permission.
                 requestStoragePermissions();
             }
+        } else {
+            takeScreenshot(screenshotButton);
         }
     }
 
@@ -713,6 +716,12 @@ public class MainActivity extends AppCompatActivity
     }
 
     public void takeScreenshot(View view) {
+        // Check the permissions to see if we are allowed to save the screenshot
+        if (!storagePermissionsAvailable) {
+            checkForStoragePermissions();
+            return;
+        }
+
         drawingView.requestBitmap();
 
         /**
@@ -721,7 +730,7 @@ public class MainActivity extends AppCompatActivity
          */
     }
 
-    private void processScreenshot(Bitmap drawingViewBitmap) {
+    private void processScreenshot(Bitmap drawingViewBitmap, boolean alsoSaveRaw) {
         if (mostRecentFrame == null) {
             Toast.makeText(getApplicationContext(), "No frame detected, aborting screenshot", Toast.LENGTH_SHORT).show();
             return;
@@ -783,16 +792,18 @@ public class MainActivity extends AppCompatActivity
         }
         ImageHelper.addPngToGallery(getApplicationContext(), screenshotFile);
 
-        String rawScreenshotFileName = timestamp + "_raw.png";
-        File rawScreenshotFile = new File(pictureFolder, rawScreenshotFileName);
+        if (alsoSaveRaw) {
+            String rawScreenshotFileName = timestamp + "_raw.png";
+            File rawScreenshotFile = new File(pictureFolder, rawScreenshotFileName);
 
-        try {
-            ImageHelper.saveBitmapToFileAsPng(faceBitmap, rawScreenshotFile);
-        } catch (IOException e) {
-            String msg = "Unable to save screenshot";
-            Log.e(LOG_TAG, msg, e);
+            try {
+                ImageHelper.saveBitmapToFileAsPng(faceBitmap, rawScreenshotFile);
+            } catch (IOException e) {
+                String msg = "Unable to save screenshot";
+                Log.e(LOG_TAG, msg, e);
+            }
+            ImageHelper.addPngToGallery(getApplicationContext(), rawScreenshotFile);
         }
-        ImageHelper.addPngToGallery(getApplicationContext(), rawScreenshotFile);
 
         faceBitmap.recycle();
         finalScreenshot.recycle();
@@ -1057,7 +1068,7 @@ public class MainActivity extends AppCompatActivity
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                processScreenshot(bitmap);
+                processScreenshot(bitmap, STORE_RAW_SCREENSHOTS);
             }
         });
     }
