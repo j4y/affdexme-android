@@ -194,7 +194,7 @@ public class MainActivity extends AppCompatActivity
                         getApplicationContext(),
                         Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
 
-        if (!cameraPermissionsAvailable) {
+        if (!storagePermissionsAvailable) {
 
             // Should we show an explanation?
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
