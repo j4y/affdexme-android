@@ -741,7 +741,7 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        Bitmap faceBitmap = detector.getBitmapFromFrame(mostRecentFrame);
+        Bitmap faceBitmap = ImageHelper.getBitmapFromFrame(mostRecentFrame);
 
         if (faceBitmap == null) {
             Log.e(LOG_TAG, "Unable to generate bitmap for frame, aborting screenshot");
