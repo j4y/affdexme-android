@@ -23,7 +23,7 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
+import android.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.text.format.DateFormat;
 import android.util.DisplayMetrics;
@@ -277,7 +277,7 @@ public class MainActivity extends AppCompatActivity
 
     private void showPermissionExplanationDialog(int requestCode) {
         final AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
-                getApplicationContext());
+                MainActivity.this);
 
         // set title
         alertDialogBuilder.setTitle(getResources().getString(R.string.insufficient_permissions));
